@@ -1,0 +1,19 @@
+(env
+ (dev
+  (flags
+   (:standard -warn-error -A -w -26)
+   (-short-paths))))
+
+(executable
+ (name demoInterpreter)
+ (modules demoInterpreter)
+ (libraries CsharpExcep.Lib)
+ (preprocess
+  (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
+
+(executable
+ (name demoException)
+ (modules demoException)
+ (libraries CsharpExcep.Lib)
+ (preprocess
+  (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
