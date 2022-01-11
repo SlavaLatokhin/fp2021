@@ -1,22 +1,16 @@
 open Csharp_lib.Parser
-
 open Csharp_lib.Interpreter.ClassLoader (Csharp_lib.Interpreter.Result)
-
 open Csharp_lib.Interpreter.Interpreter (Csharp_lib.Interpreter.Result)
 
 let test_interp test_val cl_t =
   match load_classes test_val cl_t with
-  | Error m ->
-      print_endline m;
-      Hashtbl.clear cl_t
+  | Error m -> print_endline m ; Hashtbl.clear cl_t
   | Ok load_table -> (
-      match start_interpreting load_table with
-      | Error m ->
-          print_endline m;
-          Hashtbl.clear load_table
-      | Ok res_context ->
-          print_endline (show_context res_context ^ "\n");
-          Hashtbl.clear load_table)
+    match start_interpreting load_table with
+    | Error m -> print_endline m ; Hashtbl.clear load_table
+    | Ok res_context ->
+        print_endline (show_context res_context ^ "\n") ;
+        Hashtbl.clear load_table )
 
 let () = print_string "--- Assign test ----\n\n"
 
@@ -32,10 +26,9 @@ let parse_input =
                       int c = 3;
                   }
               }
-              |})
+              |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- Arithmetic test ---\n\n"
 
 let parse_input =
@@ -64,10 +57,9 @@ let parse_input =
                            string s5 = a + s1;
                         }
                     }
-                    |})
+                    |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- Boolean expression test ---\n\n"
 
 let parse_input =
@@ -140,10 +132,9 @@ let parse_input =
                 }
 
                 }
-                  |})
+                  |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- Cycles test ---\n\n"
 
 let parse_input =
@@ -167,10 +158,9 @@ let parse_input =
               }
 
 
-                    |})
+                    |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- While test ---\n\n"
 
 let parse_input =
@@ -193,10 +183,9 @@ let parse_input =
               }
 
 
-                    |})
+                    |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- If test ---\n\n"
 
 let parse_input =
@@ -219,10 +208,9 @@ let parse_input =
               }
 
 
-                    |})
+                    |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- If else if test ---\n\n"
 
 let parse_input =
@@ -251,10 +239,9 @@ let parse_input =
 
                     }
               }
-                    |})
+                    |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- Visibility level test ---\n\n"
 
 let parse_input =
@@ -299,10 +286,9 @@ let parse_input =
                               c = 3;
                           }
                       }
-                       |})
+                       |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- Break test ---\n\n"
 
 let parse_input =
@@ -325,10 +311,9 @@ let parse_input =
                  }
 
 
-                       |})
+                       |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- Continue test ---\n\n"
 
 let parse_input =
@@ -351,10 +336,9 @@ let parse_input =
                  }
 
 
-                       |})
+                       |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- Recursion test ---\n\n"
 
 let parse_input =
@@ -383,10 +367,9 @@ let parse_input =
                  }
 
 
-                       |})
+                       |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
-
 let () = print_string "--- Const variables test ---\n\n"
 
 let parse_input =
@@ -401,6 +384,6 @@ let parse_input =
                          pi = 3;
                        }
                   }
-                       |})
+                       |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
