@@ -1,8 +1,8 @@
 type types = Int | Bool | CsClass of string | Void | String
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 type modifier = Public | Static | Override | Const
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 type values =
   | VInt of int
@@ -11,7 +11,7 @@ type values =
   | VNull
   | VString of string
   | VClass of object_references
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 and field_references =
   { key: string
@@ -54,7 +54,7 @@ type expr =
   | ClassCreate of string * expr list
   | CallMethod of string * expr list
   | Assign of expr * expr
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 and statement =
   | Expression of expr
@@ -73,13 +73,13 @@ and statement =
       (*list of catches*)
       * statement option (*finally-body*)
   | Print of expr
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 and field =
   | VariableField of types * (string * expr option) list
   | Method of types * string * (types * string) list * statement
   | Constructor of string * (types * string) list * statement
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 and class_dec =
   | Class of
@@ -88,7 +88,7 @@ and class_dec =
       * string option
       (*parent class name*)
       * (modifier list * field) list
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 let get_obj_value = function VClass o -> o | _ -> ObjNull
 
@@ -101,16 +101,15 @@ let get_default_value = function
 
 let get_obj_num = function
   | ObjNull -> raise (Invalid_argument "NullReferenceException")
-  | ObjRef {number = n; _} -> n
+  | ObjRef {number= n; _} -> n
 
 let get_obj_info = function
   | ObjNull -> raise (Invalid_argument "NullReferenceException")
-  | ObjRef {class_key = key; class_table = table; number = n; _} ->
-      (key, table, n)
+  | ObjRef {class_key= key; class_table= table; number= n; _} -> (key, table, n)
 
 let get_obj_fields = function
   | ObjNull -> raise (Invalid_argument "NullReferenceException")
-  | ObjRef {class_table = frt; _} -> frt
+  | ObjRef {class_table= frt; _} -> frt
 
 let get_field_list = function Class (_, _, _, f_list) -> List.map snd f_list
 

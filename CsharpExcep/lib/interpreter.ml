@@ -29,11 +29,11 @@ end
 type key_t = string [@@deriving show]
 
 type constructor_t = {key: key_t; args: (types * string) list; body: statement}
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 type field_t =
   {field_type: types; field_key: key_t; is_const: bool; sub_tree: expr option}
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 type method_t =
   { method_type: types
@@ -42,7 +42,7 @@ type method_t =
   ; method_key: key_t
   ; args: (types * string) list
   ; body: statement }
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 type class_t =
   { class_key: key_t
@@ -52,7 +52,7 @@ type class_t =
   ; parent_key: key_t option
   ; children_keys: key_t list
   ; dec_tree: class_dec }
-[@@deriving show {with_path = false}]
+[@@deriving show {with_path= false}]
 
 let startswith all_str sub_str =
   if String.length sub_str > String.length all_str then false
@@ -121,17 +121,15 @@ module ClassLoader (M : MONADERROR) = struct
     get_body
     >>= fun body ->
     let to_string : method_t =
-      { method_type = String
-      ; has_override = true
-      ; has_static_mod = false
-      ; method_key = to_string_key
-      ; args = []
+      { method_type= String
+      ; has_override= true
+      ; has_static_mod= false
+      ; method_key= to_string_key
+      ; args= []
       ; body } in
     let message : field_t =
-      { field_type = String
-      ; field_key = "message"
-      ; is_const = false
-      ; sub_tree = None } in
+      {field_type= String; field_key= "message"; is_const= false; sub_tree= None}
+    in
     let get_dec =
       match
         apply_parser parse_class
@@ -153,12 +151,12 @@ module ClassLoader (M : MONADERROR) = struct
     Hashtbl.add method_table to_string_key to_string ;
     Hashtbl.add field_table "message" message ;
     Hashtbl.add ht "Exception"
-      { class_key = "Exception"
+      { class_key= "Exception"
       ; field_table
       ; method_table
       ; constructor_table
-      ; parent_key = None
-      ; children_keys = []
+      ; parent_key= None
+      ; children_keys= []
       ; dec_tree } ;
     return ht
 
@@ -199,7 +197,7 @@ module ClassLoader (M : MONADERROR) = struct
         if Hashtbl.length some_class.constructor_table = 0 then
           let cl_key = make_constructor_key key [] in
           Hashtbl.add some_class.constructor_table cl_key
-            {key = cl_key; args = []; body = StatementBlock []} )
+            {key= cl_key; args= []; body= StatementBlock []} )
       ht ;
     return ht
 
@@ -254,7 +252,7 @@ module ClassLoader (M : MONADERROR) = struct
                 check_name
                 >> check_modifiers_field field_elem
                 >> add_with_check constructor_table constr_key
-                     {key = constr_key; args; body}
+                     {key= constr_key; args; body}
                      "Constructor with this type exists"
                 >> return () in
           let add_parent p = match p with None -> None | _ -> p in
@@ -266,8 +264,8 @@ module ClassLoader (M : MONADERROR) = struct
                ; method_table
                ; constructor_table
                ; parent_key
-               ; children_keys = []
-               ; dec_tree = adding_class }
+               ; children_keys= []
+               ; dec_tree= adding_class }
                "Similar Classes" in
     monadic_list_iter class_list (add_class_table hastable) hastable
 
@@ -289,7 +287,7 @@ module ClassLoader (M : MONADERROR) = struct
           | Some parent_o when exception_is_parent parent_o.class_key = 0 ->
               let new_val =
                 { parent_o with
-                  children_keys = some_class.class_key :: parent_o.children_keys
+                  children_keys= some_class.class_key :: parent_o.children_keys
                 } in
               monadic_update_hash_table ht key new_val >> return new_val
           | Some _ ->
@@ -389,10 +387,10 @@ module Interpreter (M : MONADERROR) = struct
     ; is_const: bool
     ; assignment_count: int
     ; visibility_level: int }
-  [@@deriving show {with_path = false}]
+  [@@deriving show {with_path= false}]
 
   type signal = WasBreak | WasContinue | WasReturn | WasThrown | NoSignal
-  [@@deriving show {with_path = false}]
+  [@@deriving show {with_path= false}]
 
   type context =
     { current_o: object_references
@@ -407,22 +405,22 @@ module Interpreter (M : MONADERROR) = struct
     ; prev_ctx: context option
     ; count_of_obj: int
     ; is_creation: bool }
-  [@@deriving show {with_path = false}]
+  [@@deriving show {with_path= false}]
 
   let init_contex current_o variable_table =
     return
       { current_o
       ; variable_table
-      ; current_method_type = Void
-      ; last_expr_result = VVoid
-      ; runtime_signal = NoSignal
-      ; is_main = true
-      ; curr_constructor = None
-      ; count_of_nested_cycle = 0
-      ; visibility_level = 0
-      ; prev_ctx = None
-      ; count_of_obj = 0
-      ; is_creation = false }
+      ; current_method_type= Void
+      ; last_expr_result= VVoid
+      ; runtime_signal= NoSignal
+      ; is_main= true
+      ; curr_constructor= None
+      ; count_of_nested_cycle= 0
+      ; visibility_level= 0
+      ; prev_ctx= None
+      ; count_of_obj= 0
+      ; is_creation= false }
 
   let rec fold_left2 func acc l1 l2 =
     match (l1, l2) with
@@ -574,7 +572,7 @@ module Interpreter (M : MONADERROR) = struct
         let obj_key =
           match ctx.current_o with
           | ObjNull -> "null"
-          | ObjRef {class_key = key; _} -> key in
+          | ObjRef {class_key= key; _} -> key in
         get_elem class_table obj_key
         >>= fun curr_class ->
         check_method_type curr_class method_name args ctx class_table
@@ -618,7 +616,7 @@ module Interpreter (M : MONADERROR) = struct
         match find_variable with
         | None -> (
           match ctx.current_o with
-          | ObjRef {class_table = table; _} -> (
+          | ObjRef {class_table= table; _} -> (
             match get_elem_if_present table var_key with
             | None -> error "There is no such variable or field with that name!"
             | Some field -> return field.field_type )
@@ -630,7 +628,7 @@ module Interpreter (M : MONADERROR) = struct
       | VBool _ -> return Bool
       | VString _ -> return String
       | VClass ObjNull -> return (CsClass "null")
-      | VClass (ObjRef {class_key = key; _}) -> return (CsClass key)
+      | VClass (ObjRef {class_key= key; _}) -> return (CsClass key)
       | _ -> error "Incorrect const expression type!" )
     | Assign (left, right) -> (
         check_expr_type left ctx class_table
@@ -751,10 +749,10 @@ module Interpreter (M : MONADERROR) = struct
     helper []
 
   let inc_visibility_level ctx =
-    {ctx with visibility_level = ctx.visibility_level + 1}
+    {ctx with visibility_level= ctx.visibility_level + 1}
 
   let dec_visibility_level ctx =
-    {ctx with visibility_level = ctx.visibility_level - 1}
+    {ctx with visibility_level= ctx.visibility_level - 1}
 
   let delete_var_visibility : context -> context M.t =
    fun ctx ->
@@ -826,13 +824,13 @@ module Interpreter (M : MONADERROR) = struct
                 return
                   (dec_visibility_level
                      { ctx with
-                       runtime_signal = NoSignal
-                     ; count_of_nested_cycle = ctx.count_of_nested_cycle - 1 } )
+                       runtime_signal= NoSignal
+                     ; count_of_nested_cycle= ctx.count_of_nested_cycle - 1 } )
             | _ ->
                 return
                   { ctx with
-                    runtime_signal = NoSignal
-                  ; count_of_nested_cycle = ctx.count_of_nested_cycle - 1 }
+                    runtime_signal= NoSignal
+                  ; count_of_nested_cycle= ctx.count_of_nested_cycle - 1 }
           else
             eval_expr smexpr ctx class_table
             >>= fun new_ctx ->
@@ -843,12 +841,12 @@ module Interpreter (M : MONADERROR) = struct
                   return
                     (dec_visibility_level
                        { new_ctx with
-                         count_of_nested_cycle = ctx.count_of_nested_cycle - 1
-                       ; is_main = was_main } )
+                         count_of_nested_cycle= ctx.count_of_nested_cycle - 1
+                       ; is_main= was_main } )
               | _ ->
                   return
                     { new_ctx with
-                      count_of_nested_cycle = ctx.count_of_nested_cycle - 1 } )
+                      count_of_nested_cycle= ctx.count_of_nested_cycle - 1 } )
             | VBool true -> (
                 eval_stat l_stat new_ctx class_table
                 >>= fun l_ctx ->
@@ -857,7 +855,7 @@ module Interpreter (M : MONADERROR) = struct
                 | WasReturn -> return l_ctx
                 (* we can have continue - so we cycle again*)
                 | WasContinue ->
-                    loop l_stat {l_ctx with runtime_signal = NoSignal}
+                    loop l_stat {l_ctx with runtime_signal= NoSignal}
                 | _ -> loop l_stat l_ctx )
             | _ -> error "Incorrect expression type for while stametent" in
         match stat with
@@ -865,20 +863,20 @@ module Interpreter (M : MONADERROR) = struct
             loop stat
               (inc_visibility_level
                  { input_ctx with
-                   count_of_nested_cycle = input_ctx.count_of_nested_cycle + 1
-                 ; is_main = false } )
+                   count_of_nested_cycle= input_ctx.count_of_nested_cycle + 1
+                 ; is_main= false } )
         | _ ->
             loop stat
               { input_ctx with
-                count_of_nested_cycle = input_ctx.count_of_nested_cycle + 1 } )
+                count_of_nested_cycle= input_ctx.count_of_nested_cycle + 1 } )
     | Break ->
         if input_ctx.count_of_nested_cycle <= 0 then
           error "There is no loop to do break"
-        else return {input_ctx with runtime_signal = WasBreak}
+        else return {input_ctx with runtime_signal= WasBreak}
     | Continue ->
         if input_ctx.count_of_nested_cycle <= 0 then
           error "There is no loop to do continue"
-        else return {input_ctx with runtime_signal = WasContinue}
+        else return {input_ctx with runtime_signal= WasContinue}
     | If (smexpr, then_stat, else_stat) -> (
         eval_expr smexpr input_ctx class_table
         >>= fun new_ctx ->
@@ -888,19 +886,19 @@ module Interpreter (M : MONADERROR) = struct
           match then_stat with
           | StatementBlock _ ->
               eval_stat then_stat
-                (inc_visibility_level {new_ctx with is_main = false})
+                (inc_visibility_level {new_ctx with is_main= false})
                 class_table
               >>= fun in_ctx ->
-              return (dec_visibility_level {in_ctx with is_main = was_main})
+              return (dec_visibility_level {in_ctx with is_main= was_main})
           | _ -> eval_stat then_stat new_ctx class_table )
         | VBool false -> (
           match else_stat with
           | Some (StatementBlock _ as else_st) ->
               eval_stat else_st
-                (inc_visibility_level {new_ctx with is_main = false})
+                (inc_visibility_level {new_ctx with is_main= false})
                 class_table
               >>= fun el_ctx ->
-              return (dec_visibility_level {el_ctx with is_main = was_main})
+              return (dec_visibility_level {el_ctx with is_main= was_main})
           | Some else_st -> eval_stat else_st new_ctx class_table
           | None -> return input_ctx )
         | _ -> error "Incorrect type for condition statement" )
@@ -908,10 +906,10 @@ module Interpreter (M : MONADERROR) = struct
         (* With a loop for visibility_level always increases, despite the presence/absence of a body block *)
         let was_main = input_ctx.is_main in
         ( match dec_stat_o with
-        | None -> return (inc_visibility_level {input_ctx with is_main = false})
+        | None -> return (inc_visibility_level {input_ctx with is_main= false})
         | Some dec_stat ->
             eval_stat dec_stat
-              (inc_visibility_level {input_ctx with is_main = false})
+              (inc_visibility_level {input_ctx with is_main= false})
               class_table )
         >>= fun new_ctx ->
         let rec loop body_stat af_list ctx =
@@ -919,15 +917,15 @@ module Interpreter (M : MONADERROR) = struct
           if ctx.runtime_signal = WasBreak then
             delete_var_visibility
               { ctx with
-                runtime_signal = NoSignal
-              ; count_of_nested_cycle = ctx.count_of_nested_cycle - 1
-              ; visibility_level = ctx.visibility_level - 1
-              ; is_main = was_main }
+                runtime_signal= NoSignal
+              ; count_of_nested_cycle= ctx.count_of_nested_cycle - 1
+              ; visibility_level= ctx.visibility_level - 1
+              ; is_main= was_main }
           else
             (* Standard: we look at the result of the boolean expression, if true - calculate
                the body and increments after *)
             ( match smexpr_o with
-            | None -> return {ctx with last_expr_result = VBool true}
+            | None -> return {ctx with last_expr_result= VBool true}
             | Some expr_t -> eval_expr expr_t ctx class_table )
             >>= fun cond_ctx ->
             match cond_ctx.last_expr_result with
@@ -936,9 +934,9 @@ module Interpreter (M : MONADERROR) = struct
             | VBool false ->
                 delete_var_visibility
                   { cond_ctx with
-                    count_of_nested_cycle = cond_ctx.count_of_nested_cycle - 1
-                  ; visibility_level = cond_ctx.visibility_level - 1
-                  ; is_main = was_main }
+                    count_of_nested_cycle= cond_ctx.count_of_nested_cycle - 1
+                  ; visibility_level= cond_ctx.visibility_level - 1
+                  ; is_main= was_main }
             | VBool true -> (
                 let rec inter_expr_list e_list as_ctx =
                   match e_list with
@@ -952,29 +950,29 @@ module Interpreter (M : MONADERROR) = struct
                 (* Variables inside the block itself will be in a larger visibility_level than
                    from the initializer *)
                 eval_stat body_stat
-                  {cond_ctx with visibility_level = new_ctx.visibility_level + 1}
+                  {cond_ctx with visibility_level= new_ctx.visibility_level + 1}
                   class_table
                 >>= fun body_ctx ->
                 match body_ctx.runtime_signal with
                 (* if we have return  - we interrupt everything and we return the context *)
-                | WasReturn -> return {body_ctx with is_main = was_main}
+                | WasReturn -> return {body_ctx with is_main= was_main}
                 (* we can have continue - so we cycle again*)
                 | WasContinue ->
                     inter_expr_list af_list body_ctx
                     >>= fun after_ctx ->
                     loop body_stat af_list
-                      {after_ctx with runtime_signal = NoSignal}
+                      {after_ctx with runtime_signal= NoSignal}
                 | _ ->
                     inter_expr_list af_list body_ctx
                     >>= fun after_ctx -> loop body_stat af_list after_ctx )
             | _ -> error "Incorrect condition type in for statement" in
         loop body_stat_o after_list
           { new_ctx with
-            count_of_nested_cycle = input_ctx.count_of_nested_cycle + 1 }
+            count_of_nested_cycle= input_ctx.count_of_nested_cycle + 1 }
     | Return None when input_ctx.current_method_type = Void ->
         (* If the type is Void, we exit with the Void value set by the signal that was return *)
         return
-          {input_ctx with last_expr_result = VVoid; runtime_signal = WasReturn}
+          {input_ctx with last_expr_result= VVoid; runtime_signal= WasReturn}
     | Return None -> error "Return value type mismatch"
     | Return (Some rexpr) ->
         check_expr_type rexpr input_ctx class_table
@@ -985,7 +983,7 @@ module Interpreter (M : MONADERROR) = struct
           (* We return the context in which there is the result of the expression,
              but do not forget to set the signal that was return *)
           eval_expr rexpr input_ctx class_table
-          >>= fun new_ctx -> return {new_ctx with runtime_signal = WasReturn}
+          >>= fun new_ctx -> return {new_ctx with runtime_signal= WasReturn}
     | Expression sexpr ->
         if expr_in_stat sexpr then
           eval_expr sexpr input_ctx class_table
@@ -1001,7 +999,7 @@ module Interpreter (M : MONADERROR) = struct
           | (var_name, var_expr_o) :: tail -> (
             match var_ctx.current_o with
             | ObjNull -> error "NullReferenceException"
-            | ObjRef {class_table = table; _} ->
+            | ObjRef {class_table= table; _} ->
                 ( if
                   (* We make sure that there is no such name either among local variables
                      or among class fields *)
@@ -1013,12 +1011,12 @@ module Interpreter (M : MONADERROR) = struct
                   (* If there is nothing, initialize with the base value *)
                   | None ->
                       Hashtbl.add var_ctx.variable_table var_name
-                        { var_key = var_name
-                        ; var_type = vars_type
-                        ; var_value = get_default_value vars_type
-                        ; is_const = is_const modifier
-                        ; assignment_count = 0
-                        ; visibility_level = var_ctx.visibility_level } ;
+                        { var_key= var_name
+                        ; var_type= vars_type
+                        ; var_value= get_default_value vars_type
+                        ; is_const= is_const modifier
+                        ; assignment_count= 0
+                        ; visibility_level= var_ctx.visibility_level } ;
                       return var_ctx
                   (* If there is something, we assign the value calculated on the right *)
                   | Some var_expr_e -> (
@@ -1029,12 +1027,12 @@ module Interpreter (M : MONADERROR) = struct
                         eval_expr new_var var_ctx class_table
                         >>= fun ctx_aft_ad ->
                         Hashtbl.add ctx_aft_ad.variable_table var_name
-                          { var_key = var_name
-                          ; var_type = var_expr_type
-                          ; var_value = ctx_aft_ad.last_expr_result
-                          ; is_const = is_const modifier
-                          ; assignment_count = 1
-                          ; visibility_level = ctx_aft_ad.visibility_level } ;
+                          { var_key= var_name
+                          ; var_type= var_expr_type
+                          ; var_value= ctx_aft_ad.last_expr_result
+                          ; is_const= is_const modifier
+                          ; assignment_count= 1
+                          ; visibility_level= ctx_aft_ad.visibility_level } ;
                         return ctx_aft_ad in
                       match var_expr_type with
                       (* Null can be assigned to any object *)
@@ -1072,11 +1070,10 @@ module Interpreter (M : MONADERROR) = struct
           | ObjNull -> error "NullReferenceException"
           | ObjRef ex_obj -> (
             match ex_obj.parent_key with
-            | Some "Exception" ->
-                return {new_ctx with runtime_signal = WasThrown}
+            | Some "Exception" -> return {new_ctx with runtime_signal= WasThrown}
             | None -> (
               match ex_obj.class_key with
-              | "Exception" -> return {new_ctx with runtime_signal = WasThrown}
+              | "Exception" -> return {new_ctx with runtime_signal= WasThrown}
               | _ -> error "Cannot implicitly convert type to System.Exception"
               )
             | _ -> error "Cannot implicitly convert type to System.Exception" )
@@ -1087,10 +1084,10 @@ module Interpreter (M : MONADERROR) = struct
         let eval_try = function
           | StatementBlock _ ->
               eval_stat try_stat
-                (inc_visibility_level {input_ctx with is_main = false})
+                (inc_visibility_level {input_ctx with is_main= false})
                 class_table
               >>= fun t_ctx ->
-              return (dec_visibility_level {t_ctx with is_main = was_main})
+              return (dec_visibility_level {t_ctx with is_main= was_main})
           | _ -> error "Expected { } in try block!" in
         let eval_finally finally_ctx =
           match finally_stat_o with
@@ -1099,24 +1096,22 @@ module Interpreter (M : MONADERROR) = struct
             when finally_ctx.runtime_signal = WasReturn ->
               let get_return_v = finally_ctx.last_expr_result in
               eval_stat finally_stat
-                (inc_visibility_level {finally_ctx with is_main = false})
+                (inc_visibility_level {finally_ctx with is_main= false})
                 class_table
               >>= fun f_ctx ->
               return
                 (dec_visibility_level
-                   { f_ctx with
-                     is_main = was_main
-                   ; last_expr_result = get_return_v } )
+                   {f_ctx with is_main= was_main; last_expr_result= get_return_v} )
           | Some (StatementBlock _ as finally_stat) ->
               let save_flag = finally_ctx.runtime_signal in
               eval_stat finally_stat
                 (inc_visibility_level
-                   {finally_ctx with is_main = false; runtime_signal = NoSignal} )
+                   {finally_ctx with is_main= false; runtime_signal= NoSignal} )
                 class_table
               >>= fun f_ctx ->
               return
                 (dec_visibility_level
-                   {f_ctx with is_main = was_main; runtime_signal = save_flag} )
+                   {f_ctx with is_main= was_main; runtime_signal= save_flag} )
           | _ -> error "Expected { } in finally block!" in
         eval_try try_stat
         >>= fun after_try_ctx ->
@@ -1137,43 +1132,43 @@ module Interpreter (M : MONADERROR) = struct
                   >> eval_stat catch_stat
                        (inc_visibility_level
                           { eval_ctx with
-                            runtime_signal = NoSignal
-                          ; is_main = false } )
+                            runtime_signal= NoSignal
+                          ; is_main= false } )
                        class_table
                   >>= fun catch_ctx ->
                   return
-                    (dec_visibility_level {catch_ctx with is_main = was_main})
+                    (dec_visibility_level {catch_ctx with is_main= was_main})
               | Some (CsClass cl_name, None), None, catch_stat -> (
                 match eval_ctx.last_expr_result with
-                | VClass (ObjRef {class_key = throw_name; _}) ->
+                | VClass (ObjRef {class_key= throw_name; _}) ->
                     if throw_name = cl_name || cl_name = "Exception" then
                       check_catch_stat catch_stat
                       >> eval_stat catch_stat
                            (inc_visibility_level
                               { eval_ctx with
-                                runtime_signal = NoSignal
-                              ; is_main = false } )
+                                runtime_signal= NoSignal
+                              ; is_main= false } )
                            class_table
                       >>= fun catch_ctx ->
                       return
                         (dec_visibility_level
-                           {catch_ctx with is_main = was_main} )
+                           {catch_ctx with is_main= was_main} )
                     else return eval_ctx
                 | _ -> error "Incorrect type of result" )
               | ( Some (CsClass cl_name, Some (IdentVar th_ex_name))
                 , None
                 , catch_stat ) -> (
                 match eval_ctx.last_expr_result with
-                | VClass (ObjRef {class_key = throw_name; _}) ->
+                | VClass (ObjRef {class_key= throw_name; _}) ->
                     if throw_name = cl_name || cl_name = "Exception" then
                       let adder =
                         Hashtbl.add eval_ctx.variable_table th_ex_name
-                          { var_key = th_ex_name
-                          ; var_type = CsClass cl_name
-                          ; var_value = eval_ctx.last_expr_result
-                          ; is_const = false
-                          ; assignment_count = 0
-                          ; visibility_level = eval_ctx.visibility_level + 1 } ;
+                          { var_key= th_ex_name
+                          ; var_type= CsClass cl_name
+                          ; var_value= eval_ctx.last_expr_result
+                          ; is_const= false
+                          ; assignment_count= 0
+                          ; visibility_level= eval_ctx.visibility_level + 1 } ;
                         return eval_ctx in
                       adder
                       >>= fun adder_ctx ->
@@ -1181,13 +1176,13 @@ module Interpreter (M : MONADERROR) = struct
                       >> eval_stat catch_stat
                            (inc_visibility_level
                               { adder_ctx with
-                                runtime_signal = NoSignal
-                              ; is_main = false } )
+                                runtime_signal= NoSignal
+                              ; is_main= false } )
                            class_table
                       >>= fun catch_ctx ->
                       return
                         (dec_visibility_level
-                           {catch_ctx with is_main = was_main} )
+                           {catch_ctx with is_main= was_main} )
                     else return eval_ctx
                 | _ -> error "Incorrect type of result" )
               | _ -> error "Incorrect catch statement" in
@@ -1229,7 +1224,7 @@ module Interpreter (M : MONADERROR) = struct
         let get_left_value = left_ctx.last_expr_result in
         let get_right_value = right_ctx.last_expr_result in
         match operator get_left_value get_right_value with
-        | cal_value -> return {right_ctx with last_expr_result = cal_value}
+        | cal_value -> return {right_ctx with last_expr_result= cal_value}
         | exception Invalid_argument m -> error m
         | exception Division_by_zero -> error "Division by zero!" in
       let eval_unar ex_operand operator =
@@ -1237,7 +1232,7 @@ module Interpreter (M : MONADERROR) = struct
         >>= fun new_ctx ->
         let get_value = new_ctx.last_expr_result in
         match operator get_value with
-        | cal_unar_v -> return {new_ctx with last_expr_result = cal_unar_v}
+        | cal_unar_v -> return {new_ctx with last_expr_result= cal_unar_v}
         | exception Invalid_argument m -> error m in
       let ( ++ ) left right =
         match (left, right) with
@@ -1314,8 +1309,7 @@ module Interpreter (M : MONADERROR) = struct
           match (x, y) with
           | ObjNull, ObjNull -> VBool true
           | ObjNull, _ | _, ObjNull -> VBool false
-          | ObjRef {number = xn; _}, ObjRef {number = yn; _} -> VBool (xn = yn)
-          )
+          | ObjRef {number= xn; _}, ObjRef {number= yn; _} -> VBool (xn = yn) )
         | _ -> raise (Invalid_argument "Incorrect types for equality!") in
       let ( !=! ) left right = not_op (left === right) in
       match e_expr with
@@ -1333,29 +1327,28 @@ module Interpreter (M : MONADERROR) = struct
       | MoreOrEqual (left, right) -> eval_op left right ( >>== )
       | Equal (left, right) -> eval_op left right ( === )
       | NotEqual (left, right) -> eval_op left right ( !=! )
-      | ConstExpr value -> return {ctx with last_expr_result = value}
+      | ConstExpr value -> return {ctx with last_expr_result= value}
       | IdentVar var_id -> (
         match get_elem_if_present ctx.variable_table var_id with
-        | Some id -> return {ctx with last_expr_result = id.var_value}
+        | Some id -> return {ctx with last_expr_result= id.var_value}
         | None -> (
           try
             get_obj_info ctx.current_o
             |> fun (_, table, _) ->
             match get_elem_if_present table var_id with
-            | Some field ->
-                return {ctx with last_expr_result = field.field_value}
+            | Some field -> return {ctx with last_expr_result= field.field_value}
             | None -> error "Field not found"
           with Failure m | Invalid_argument m -> error m ) )
-      | Null -> return {ctx with last_expr_result = VClass ObjNull}
+      | Null -> return {ctx with last_expr_result= VClass ObjNull}
       | Access (obj_expr, IdentVar field_key) -> (
           eval_expr obj_expr ctx class_table
           >>= fun ob_ctx ->
           let get_obj = ob_ctx.last_expr_result in
           match get_obj with
-          | VClass (ObjRef {class_table = table; _}) ->
+          | VClass (ObjRef {class_table= table; _}) ->
               get_elem table field_key
               >>= fun get_field ->
-              return {ob_ctx with last_expr_result = get_field.field_value}
+              return {ob_ctx with last_expr_result= get_field.field_value}
           | _ -> error "Cannot access a field of non-reference type" )
       | Access (obj_expr, CallMethod (m_name, args)) -> (
           eval_expr obj_expr ctx class_table
@@ -1364,10 +1357,10 @@ module Interpreter (M : MONADERROR) = struct
           | VClass ObjNull -> error "NullReferenceException"
           | VClass
               (ObjRef
-                { class_key = cl_k
-                ; class_table = table
-                ; number = num
-                ; parent_key = par_k } ) -> (
+                { class_key= cl_k
+                ; class_table= table
+                ; number= num
+                ; parent_key= par_k } ) -> (
             match get_elem_if_present class_table cl_k with
             | None -> error "Class not found"
             | Some found_class -> (
@@ -1381,55 +1374,55 @@ module Interpreter (M : MONADERROR) = struct
                   with Invalid_argument m -> error m )
                 >>= fun (new_table, new_ctx) ->
                 eval_stat meth.body
-                  { current_o =
+                  { current_o=
                       ObjRef
-                        { class_key = cl_k
-                        ; class_table = table
-                        ; number = num
-                        ; parent_key = par_k }
-                  ; variable_table = new_table
-                  ; current_method_type = meth.method_type
-                  ; last_expr_result = VVoid
-                  ; runtime_signal = NoSignal
-                  ; is_main = false
-                  ; curr_constructor = None
-                  ; count_of_nested_cycle = 0
-                  ; visibility_level = 0
-                  ; prev_ctx = Some ctx
-                  ; count_of_obj = ctx.count_of_obj
-                  ; is_creation = false }
+                        { class_key= cl_k
+                        ; class_table= table
+                        ; number= num
+                        ; parent_key= par_k }
+                  ; variable_table= new_table
+                  ; current_method_type= meth.method_type
+                  ; last_expr_result= VVoid
+                  ; runtime_signal= NoSignal
+                  ; is_main= false
+                  ; curr_constructor= None
+                  ; count_of_nested_cycle= 0
+                  ; visibility_level= 0
+                  ; prev_ctx= Some ctx
+                  ; count_of_obj= ctx.count_of_obj
+                  ; is_creation= false }
                   class_table
                 >>= fun res_ctx ->
                 match res_ctx.runtime_signal with
                 | WasThrown ->
                     return
                       { new_ctx with
-                        last_expr_result = res_ctx.last_expr_result
-                      ; count_of_obj = res_ctx.count_of_obj
-                      ; runtime_signal = WasThrown
-                      ; is_creation = false }
+                        last_expr_result= res_ctx.last_expr_result
+                      ; count_of_obj= res_ctx.count_of_obj
+                      ; runtime_signal= WasThrown
+                      ; is_creation= false }
                 | _ ->
                     return
                       { new_ctx with
-                        last_expr_result =
+                        last_expr_result=
                           ( if meth.method_type = Void then VVoid
                           else res_ctx.last_expr_result )
-                      ; count_of_obj = res_ctx.count_of_obj
-                      ; is_creation = false } ) )
+                      ; count_of_obj= res_ctx.count_of_obj
+                      ; is_creation= false } ) )
           | _ -> error "Cannot access a field of non-reference type" )
       | CallMethod (m_name, args) -> (
           let get_curr_o =
-            return {ctx with last_expr_result = VClass ctx.current_o} in
+            return {ctx with last_expr_result= VClass ctx.current_o} in
           get_curr_o
           >>= fun ob_ctx ->
           match ob_ctx.last_expr_result with
           | VClass ObjNull -> error "NullReferenceException"
           | VClass
               (ObjRef
-                { class_key = cl_k
-                ; class_table = table
-                ; number = num
-                ; parent_key = par_k } ) -> (
+                { class_key= cl_k
+                ; class_table= table
+                ; number= num
+                ; parent_key= par_k } ) -> (
             match get_elem_if_present class_table cl_k with
             | None -> error "Class not found"
             | Some found_class -> (
@@ -1443,42 +1436,42 @@ module Interpreter (M : MONADERROR) = struct
                   with Invalid_argument m -> error m )
                 >>= fun (new_table, new_ctx) ->
                 eval_stat meth.body
-                  { current_o =
+                  { current_o=
                       ObjRef
-                        { class_key = cl_k
-                        ; class_table = table
-                        ; number = num
-                        ; parent_key = par_k }
-                  ; variable_table = new_table
-                  ; current_method_type = meth.method_type
-                  ; last_expr_result = VVoid
-                  ; runtime_signal = NoSignal
-                  ; is_main = false
-                  ; curr_constructor = None
-                  ; count_of_nested_cycle = 0
-                  ; visibility_level = 0
-                  ; prev_ctx = Some ctx
-                  ; count_of_obj = ctx.count_of_obj
-                  ; is_creation = false }
+                        { class_key= cl_k
+                        ; class_table= table
+                        ; number= num
+                        ; parent_key= par_k }
+                  ; variable_table= new_table
+                  ; current_method_type= meth.method_type
+                  ; last_expr_result= VVoid
+                  ; runtime_signal= NoSignal
+                  ; is_main= false
+                  ; curr_constructor= None
+                  ; count_of_nested_cycle= 0
+                  ; visibility_level= 0
+                  ; prev_ctx= Some ctx
+                  ; count_of_obj= ctx.count_of_obj
+                  ; is_creation= false }
                   class_table
                 >>= fun res_ctx ->
                 match res_ctx.runtime_signal with
                 | WasThrown ->
                     return
                       { new_ctx with
-                        last_expr_result = res_ctx.last_expr_result
-                      ; count_of_obj = res_ctx.count_of_obj
-                      ; runtime_signal = WasThrown
-                      ; is_creation = false }
+                        last_expr_result= res_ctx.last_expr_result
+                      ; count_of_obj= res_ctx.count_of_obj
+                      ; runtime_signal= WasThrown
+                      ; is_creation= false }
                 | _ ->
                     return
                       { new_ctx with
-                        last_expr_result =
+                        last_expr_result=
                           ( if meth.method_type = Void then VVoid
                             (*чтобы не сохранять в last_expr_result значение не типа VVoid, если метод Void  *)
                           else res_ctx.last_expr_result )
-                      ; count_of_obj = res_ctx.count_of_obj
-                      ; is_creation = false } ) )
+                      ; count_of_obj= res_ctx.count_of_obj
+                      ; is_creation= false } ) )
           | _ -> error "Cannot access a field of non-reference type" )
       | Assign (IdentVar var_key, val_expr) ->
           eval_expr val_expr ctx class_table
@@ -1536,11 +1529,11 @@ module Interpreter (M : MONADERROR) = struct
                         eval_expr fe rec_ctx class_table
                         >>= fun fe_ctx ->
                         Hashtbl.add inhelp_ht field_name
-                          { key = field_name
-                          ; field_type = cur_field_type
-                          ; field_value = fe_ctx.last_expr_result
-                          ; is_const = const_res
-                          ; assignment_count = 1 } ;
+                          { key= field_name
+                          ; field_type= cur_field_type
+                          ; field_value= fe_ctx.last_expr_result
+                          ; is_const= const_res
+                          ; assignment_count= 1 } ;
                         return (fe_ctx, inhelp_ht) in
                       match expr_type with
                       | CsClass "null" -> (
@@ -1559,23 +1552,23 @@ module Interpreter (M : MONADERROR) = struct
                       is_const field_name
                       >>= fun const_res ->
                       Hashtbl.add inhelp_ht field_name
-                        { key = field_name
-                        ; field_type = cur_field_type
-                        ; field_value = get_default_value cur_field_type
-                        ; is_const = const_res
-                        ; assignment_count = 0 } ;
+                        { key= field_name
+                        ; field_type= cur_field_type
+                        ; field_value= get_default_value cur_field_type
+                        ; is_const= const_res
+                        ; assignment_count= 0 } ;
                       return (rec_ctx, inhelp_ht) )
                   >>= fun (head_ctx, head_ht) ->
                   obj_num head_ctx.current_o
                   >>= fun num ->
                   create_helper head_ht
                     { head_ctx with
-                      current_o =
+                      current_o=
                         ObjRef
-                          { class_key = class_name
-                          ; parent_key = get_obj.parent_key
-                          ; class_table = head_ht
-                          ; number = num } }
+                          { class_key= class_name
+                          ; parent_key= get_obj.parent_key
+                          ; class_table= head_ht
+                          ; number= num } }
                     tail in
             match par_class.parent_key with
             | None -> create_helper (Hashtbl.create 128) init_ctx field_pairs
@@ -1589,23 +1582,23 @@ module Interpreter (M : MONADERROR) = struct
                   par_ctx field_pairs in
           let new_object =
             ObjRef
-              { class_key = class_name
-              ; parent_key = get_obj.parent_key
-              ; class_table = Hashtbl.create 100
-              ; number = ctx.count_of_obj + 1 } in
+              { class_key= class_name
+              ; parent_key= get_obj.parent_key
+              ; class_table= Hashtbl.create 100
+              ; number= ctx.count_of_obj + 1 } in
           create_obj get_obj
-            { current_o = new_object
-            ; variable_table = Hashtbl.create 100
-            ; last_expr_result = VVoid
-            ; runtime_signal = NoSignal
-            ; current_method_type = Void
-            ; is_main = false
-            ; count_of_nested_cycle = 0
-            ; visibility_level = 0
-            ; prev_ctx = Some ctx
-            ; count_of_obj = ctx.count_of_obj + 1
-            ; curr_constructor = None
-            ; is_creation = false }
+            { current_o= new_object
+            ; variable_table= Hashtbl.create 100
+            ; last_expr_result= VVoid
+            ; runtime_signal= NoSignal
+            ; current_method_type= Void
+            ; is_main= false
+            ; count_of_nested_cycle= 0
+            ; visibility_level= 0
+            ; prev_ctx= Some ctx
+            ; count_of_obj= ctx.count_of_obj + 1
+            ; curr_constructor= None
+            ; is_creation= false }
           >>= fun initres_ctx ->
           let get_new_var_table =
             try
@@ -1618,17 +1611,17 @@ module Interpreter (M : MONADERROR) = struct
           >>= fun c_body ->
           eval_stat c_body
             { initres_ctx with
-              variable_table = vt
-            ; is_creation = true
-            ; is_main = false
-            ; curr_constructor = Some found_constr.key }
+              variable_table= vt
+            ; is_creation= true
+            ; is_main= false
+            ; curr_constructor= Some found_constr.key }
             class_table
           >>= fun c_ctx ->
           return
             { ctx with
-              last_expr_result = VClass c_ctx.current_o
-            ; runtime_signal = NoSignal
-            ; count_of_obj = c_ctx.count_of_obj }
+              last_expr_result= VClass c_ctx.current_o
+            ; runtime_signal= NoSignal
+            ; count_of_obj= c_ctx.count_of_obj }
       | _ -> error "Incorrect expression!" in
     check_expr_type in_expr in_ctx class_table
     >>= fun _ -> eval_helper in_expr in_ctx
@@ -1643,12 +1636,12 @@ module Interpreter (M : MONADERROR) = struct
             eval_expr arg hctx class_table
             >>= fun new_ctx ->
             Hashtbl.add new_ht h_name
-              { var_type = h_type
-              ; var_key = h_name
-              ; is_const = false
-              ; assignment_count = 1
-              ; var_value = new_ctx.last_expr_result
-              ; visibility_level = 0 } ;
+              { var_type= h_type
+              ; var_key= h_name
+              ; is_const= false
+              ; assignment_count= 1
+              ; var_value= new_ctx.last_expr_result
+              ; visibility_level= 0 } ;
             return (new_ht, new_ctx) )
       (ht, ctx) args meth_args
 
@@ -1660,13 +1653,13 @@ module Interpreter (M : MONADERROR) = struct
       >>= fun _ ->
       Hashtbl.replace var_ctx.variable_table var_key
         { get_old with
-          var_value = value
-        ; assignment_count = get_old.assignment_count + 1 } ;
+          var_value= value
+        ; assignment_count= get_old.assignment_count + 1 } ;
       return var_ctx )
     else
       match var_ctx.current_o with
       | ObjNull -> error "NullReferenceException"
-      | ObjRef {class_table = table; _} ->
+      | ObjRef {class_table= table; _} ->
           if Hashtbl.mem table var_key then
             get_elem table var_key
             >>= fun get_old ->
@@ -1674,7 +1667,7 @@ module Interpreter (M : MONADERROR) = struct
             >>= fun _ ->
             if var_ctx.is_creation then
               Hashtbl.replace table var_key
-                {get_old with field_value = var_ctx.last_expr_result}
+                {get_old with field_value= var_ctx.last_expr_result}
               |> fun _ -> return var_ctx
             else
               try
@@ -1701,7 +1694,7 @@ module Interpreter (M : MONADERROR) = struct
         >>= fun _ ->
         if obj_evaled_ctx.is_creation then
           Hashtbl.replace fl_table field_name
-            {old_field with field_value = field_ctx.last_expr_result}
+            {old_field with field_value= field_ctx.last_expr_result}
           |> fun _ -> return obj_evaled_ctx
         else
           update_object get_obj field_name cal_new_val obj_evaled_ctx
@@ -1716,17 +1709,17 @@ module Interpreter (M : MONADERROR) = struct
       Hashtbl.iter
         (fun _ field_ref ->
           match field_ref with
-          | {field_value = f_val; _} -> (
+          | {field_value= f_val; _} -> (
             match f_val with
-            | VClass (ObjRef {class_table = fl_table; number = fnum; _}) ->
+            | VClass (ObjRef {class_table= fl_table; number= fnum; _}) ->
                 ( if fnum = ref_num then
                   match get_elem_if_present fl_table f_key with
                   | None -> raise Not_found
                   | Some old_field ->
                       Hashtbl.replace fl_table f_key
                         { old_field with
-                          field_value = new_val
-                        ; assignment_count = count_assign } ) ;
+                          field_value= new_val
+                        ; assignment_count= count_assign } ) ;
                 refresh fl_table f_key new_val ref_num count_assign
             | _ -> () ) )
         field_hashtable in
@@ -1734,15 +1727,15 @@ module Interpreter (M : MONADERROR) = struct
       Hashtbl.iter
         (fun _ var ->
           match var.var_value with
-          | VClass (ObjRef {class_table = field_table; number = fnum; _}) ->
+          | VClass (ObjRef {class_table= field_table; number= fnum; _}) ->
               if up_num = fnum then (
                 match get_elem_if_present field_table f_key with
                 | None -> raise Not_found
                 | Some old_field ->
                     Hashtbl.replace field_table f_key
                       { old_field with
-                        field_value = new_val
-                      ; assignment_count = assign_cnt } ;
+                        field_value= new_val
+                      ; assignment_count= assign_cnt } ;
                     refresh field_table f_key new_val up_num assign_cnt )
               else refresh field_table f_key new_val up_num assign_cnt
           | _ -> () )
@@ -1771,10 +1764,10 @@ module Interpreter (M : MONADERROR) = struct
     >>= fun main_class ->
     init_contex
       (ObjRef
-         { class_key = main_class.class_key
-         ; parent_key = None
-         ; class_table = Hashtbl.create 32
-         ; number = 0 } )
+         { class_key= main_class.class_key
+         ; parent_key= None
+         ; class_table= Hashtbl.create 32
+         ; number= 0 } )
       (Hashtbl.create 32)
     >>= fun ctx ->
     let main = Hashtbl.find main_class.method_table "Main" in
