@@ -20,13 +20,13 @@ and field_references =
   ; is_const: bool
   ; assignment_count: int }
 
-and object_references =
-  | ObjNull
-  | ObjRef of
-      { class_key: string
-      ; parent_key: string option
-      ; class_table: (string, field_references) Hashtbl_der.t
-      ; number: int }
+and obj =
+  { class_key: string
+  ; parent_key: string option
+  ; class_table: (string, field_references) Hashtbl_der.t
+  ; number: int }
+
+and object_references = ObjNull | ObjRef of obj
 
 type expr =
   | Plus of expr * expr
@@ -48,7 +48,6 @@ type expr =
   | PostDec of expr
   | PrefInc of expr
   | PrefDec of expr
-  | Access of expr * expr
   | ConstExpr of values
   | IdentVar of string
   | ClassCreate of string * expr list
@@ -69,7 +68,7 @@ and statement =
   | Throw of expr
   | Try of
       statement (*try-body*)
-      * ((types * expr option) option * expr option * statement) list
+      * (types option * statement) list
       (*list of catches*)
       * statement option (*finally-body*)
   | Print of expr

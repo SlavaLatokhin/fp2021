@@ -21,7 +21,7 @@
   ]]
   ; current_method_type = Void; last_expr_result = VInt (3);
   runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycle = 0; visibility_level = 0; prev_ctx = None;
+  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
   count_of_obj = 0; is_creation = false
   }
   
@@ -103,7 +103,7 @@
   ]]
   ; current_method_type = Void; last_expr_result = VString ("10a");
   runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycle = 0; visibility_level = 0; prev_ctx = None;
+  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
   count_of_obj = 0; is_creation = false
   }
   
@@ -250,7 +250,7 @@
   ]]
   ; current_method_type = Void; last_expr_result = VInt (1);
   runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycle = 0; visibility_level = 0; prev_ctx = None;
+  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
   count_of_obj = 2; is_creation = false
   }
   
@@ -274,7 +274,7 @@
   ]]
   ; current_method_type = Void; last_expr_result = VBool (false);
   runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycle = 0; visibility_level = 2; prev_ctx = None;
+  count_of_nested_cycles = 0; visibility_level = 2; prev_ctx = None;
   count_of_obj = 0; is_creation = false
   }
   
@@ -296,7 +296,7 @@
   ]]
   ; current_method_type = Void; last_expr_result = VBool (false);
   runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycle = 0; visibility_level = 0; prev_ctx = None;
+  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
   count_of_obj = 0; is_creation = false
   }
   
@@ -319,7 +319,7 @@
   ]]
   ; current_method_type = Void; last_expr_result = VString ("a");
   runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycle = 0; visibility_level = 0; prev_ctx = None;
+  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
   count_of_obj = 0; is_creation = false
   }
   
@@ -342,7 +342,7 @@
   ]]
   ; current_method_type = Void; last_expr_result = VString ("a==b");
   runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycle = 0; visibility_level = 0; prev_ctx = None;
+  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
   count_of_obj = 0; is_creation = false
   }
   
@@ -372,7 +372,7 @@
   ]]
   ; current_method_type = Void; last_expr_result = VInt (3);
   runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycle = 0; visibility_level = 1; prev_ctx = None;
+  count_of_nested_cycles = 0; visibility_level = 1; prev_ctx = None;
   count_of_obj = 0; is_creation = false
   }
   
@@ -387,7 +387,7 @@
     variable_table = [[]]
     ; current_method_type = Void; last_expr_result = VInt (3);
     runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-    count_of_nested_cycle = 0; visibility_level = 1; prev_ctx = None;
+    count_of_nested_cycles = 0; visibility_level = 1; prev_ctx = None;
     count_of_obj = 0; is_creation = false }
   
   --- Continue test ---
@@ -402,7 +402,7 @@
     variable_table = [[]]
     ; current_method_type = Void; last_expr_result = VBool (false);
     runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-    count_of_nested_cycle = 0; visibility_level = 1; prev_ctx = None;
+    count_of_nested_cycles = 0; visibility_level = 1; prev_ctx = None;
     count_of_obj = 0; is_creation = false }
   
   --- Recursion test ---
@@ -419,7 +419,7 @@
   ]]
   ; current_method_type = Void; last_expr_result = VInt (120);
   runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycle = 0; visibility_level = 0; prev_ctx = None;
+  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
   count_of_obj = 0; is_creation = false
   }
   

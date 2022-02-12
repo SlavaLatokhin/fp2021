@@ -98,9 +98,7 @@ module Expression = struct
       input
 
   and primar_expr input =
-    ( init_instance <|> assign <|> field_access <|> call_method <|> parens expr
-    <|> atomic )
-      input
+    (init_instance <|> assign <|> call_method <|> parens expr <|> atomic) input
 
   and split_by_comma input = sep_by expr (token ",") input
 
@@ -118,16 +116,8 @@ module Expression = struct
     >>= fun args_list -> token ")" >> return (ClassCreate (name, args_list)) )
       input
 
-  and field_access input =
-    let helper = parens init_instance <|> call_method <|> get_variable in
-    ( helper
-    >>= fun head ->
-    many1 (token "." >> helper)
-    => fun tl -> List.fold_left (fun head tl -> Access (head, tl)) head tl )
-      input
-
   and assign input =
-    let parse_left = field_access <|> call_method <|> get_variable in
+    let parse_left = call_method <|> get_variable in
     ( parse_left
     >>= fun left ->
     token "=" >> expr >>= fun right -> return (Assign (left, right)) )
@@ -224,30 +214,19 @@ module Statement = struct
   and break input = (token "break" >> token ";" >> return Break) input
 
   and try_stat input =
-    let filter = return None in
     (*catch cases:
       catch {}
       catch (Exception) {}
-      catch (Exception ex) {}
     *)
     let catch =
       token "catch"
       >> choice
            [ ( token "(" >> Expression.define_type
              >>= fun excep_type ->
-             choice
-               [ (Expression.get_variable >>= fun name -> return (Some name))
-               ; return None ]
-             >>= fun var_name ->
-             token ")" >> filter
-             >>= fun filter ->
-             parse_statements
-             >>= fun catch_block ->
-             return (Some (excep_type, var_name), filter, catch_block) )
-           ; ( filter
-             >>= fun filter ->
-             parse_statements
-             >>= fun catch_block -> return (None, filter, catch_block) ) ] in
+             token ")" >> parse_statements
+             >>= fun catch_block -> return (Some excep_type, catch_block) )
+           ; (parse_statements >>= fun catch_block -> return (None, catch_block))
+           ] in
     ( token "try" >> parse_statements
     >>= fun try_stat ->
     many catch
@@ -382,23 +361,50 @@ module Tests = struct
     apply_parser expr "x = true"
     = Some (Assign (IdentVar "x", ConstExpr (VBool true)))
 
-  let%test _ =
-    apply_parser expr "a.b.c"
-    = Some (Access (Access (IdentVar "a", IdentVar "b"), IdentVar "c"))
-
-  let%test _ =
-    apply_parser expr "obj.Sum(5, a1, a2 * 3)"
-    = Some
-        (Access
-           ( IdentVar "obj"
-           , CallMethod
-               ( "Sum"
-               , [ ConstExpr (VInt 5); IdentVar "a1"
-                 ; Mul (IdentVar "a2", ConstExpr (VInt 3)) ] ) ) )
-
+  (*classes and statement tests*)
   let%test _ =
     apply_parser expr "new Person(19,\"Artem\")"
     = Some
         (ClassCreate
            ("Person", [ConstExpr (VInt 19); ConstExpr (VString "Artem")]) )
+
+  let get_body =
+    apply_parser Statement.statement_block
+      {|
+                      {
+                        return message;
+                      }
+                  |}
+
+  let%test _ =
+    get_body = Some (StatementBlock [Return (Some (IdentVar "message"))])
+
+  let get_dec =
+    apply_parser parse_class
+      {|
+               public class Exception
+               {
+                 public string message;
+                 public string ToString()
+                 {
+                     return message;
+                 }
+               }
+           |}
+
+  let%test _ =
+    get_dec
+    = Some
+        (Class
+           ( [Public]
+           , "Exception"
+           , None
+           , [ ([Public], VariableField (String, [("message", None)]))
+             ; ( [Public]
+               , Method
+                   ( String
+                   , "ToString"
+                   , []
+                   , StatementBlock [Return (Some (IdentVar "message"))] ) ) ]
+           ) )
 end

@@ -1,10 +1,10 @@
-.PHONY: repl tests test celan 
+.PHONY: repl tests test fmt lint celan
 
 all:
 	dune build
 
 repl:
-	dune exec ./REPL.exe
+	dune build ./REPL.exe && rlwrap _build/default/REPL.exe
 
 tests: test
 test:
@@ -16,4 +16,11 @@ clean:
 
 fmt:
 	dune build @fmt --auto-promote
+
+lint:
+	dune build @lint --force
+
+release:
+	dune build --profile=release
+	dune runtest --profile=release
 

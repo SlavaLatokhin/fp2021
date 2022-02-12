@@ -7,7 +7,7 @@
 (library
  (name csharp_lib)
  (public_name CsharpExcep.Lib)
- (modules Ast Parser Interpreter Hashtbl_der)
+ (modules Ast Parser Interpreter Hashtbl_der Interpret_classes Value_types)
  (libraries opal ppx_show.runtime)
  (inline_tests)
  (preprocess
