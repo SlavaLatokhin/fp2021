@@ -103,7 +103,7 @@ module Interpret_classes (M : MONADERROR) = struct
     return class_table
 
   let class_adding class_list class_table =
-    (*function for adding to a table with a check for existence*)
+    (** function for adding to a table with a check for existence*)
     let add_with_check ht key value message =
       match Hashtbl.find_opt ht key with
       | None -> Hashtbl.add ht key value ; return ht
@@ -111,11 +111,11 @@ module Interpret_classes (M : MONADERROR) = struct
     let add_class_table ht adding_class =
       match adding_class with
       | Class (_, class_key, parent, fields) ->
-          (* Initialize tables *)
+          (** Initialize tables *)
           let method_table = Hashtbl.create 1024 in
           let field_table = Hashtbl.create 1024 in
           let constructor_table = Hashtbl.create 1024 in
-          (* Function of adding a class element to the corresponding table *)
+          (** Function of adding a class element to the corresponding table *)
           let add_class_elem : modifier list * field -> unit M.t =
            fun field_elem ->
             match field_elem with
@@ -177,9 +177,9 @@ module Interpret_classes (M : MONADERROR) = struct
     let update_helper : class_t -> class_t M.t =
      fun some_class ->
       match some_class.parent_key with
-      (* There is no parent key - go ahead *)
+      (** There is no parent key - go ahead *)
       | None -> return some_class
-      (* If there is, we are trying to get the parent by the key
+      (** If there is, we are trying to get the parent by the key
          (or crash with an error), if it is possible to inherit,
           we update the hash table *)
       | Some key -> (
@@ -202,7 +202,7 @@ module Interpret_classes (M : MONADERROR) = struct
       (Hashtbl.to_seq_values class_table)
       update_helper class_table
 
-  (* Inheritance of the parent field *)
+  (** Inheritance of the parent field *)
   let inherit_fields parent children =
     let exception_inherit_field : class_t -> field_t -> unit t =
      fun child_class p_field ->
@@ -218,7 +218,7 @@ module Interpret_classes (M : MONADERROR) = struct
       (exception_inherit_field children)
       ()
 
-  (* Inheritance of the parent methods*)
+  (** Inheritance of the parent methods*)
   let inherit_methods parent children =
     let exception_inherit_method : class_t -> method_t -> unit t =
      fun child_class p_method ->
@@ -235,14 +235,14 @@ module Interpret_classes (M : MONADERROR) = struct
       (exception_inherit_method children)
       ()
 
-  (* Checking that the child's override modifiers are only for overridden methods*)
+  (** Checking that the child's override modifiers are only for overridden methods*)
   let check_override_mod parent children =
     let check : class_t -> method_t -> unit t =
      fun parent child_method ->
       match child_method.has_override with
-      (* No annotation - skip *)
+      (** No annotation - skip *)
       | false -> return ()
-      (* If there is - see if there is such a method in the parent, if there is
+      (** If there is - see if there is such a method in the parent, if there is
          - everything is ok, if not - an error *)
       | true -> (
         match Hashtbl.find_opt parent.method_table child_method.method_key with

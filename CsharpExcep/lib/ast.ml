@@ -67,10 +67,10 @@ and statement =
   | VarDeclare of modifier option * types * (string * expr option) list
   | Throw of expr
   | Try of
-      statement (*try-body*)
+      statement (** try-body*)
       * (types option * statement) list
-      (*list of catches*)
-      * statement option (*finally-body*)
+      (** list of catches*)
+      * statement option (** finally-body*)
   | Print of expr
 [@@deriving show {with_path= false}]
 
@@ -83,9 +83,9 @@ and field =
 and class_dec =
   | Class of
       modifier list
-      * string (*class name*)
+      * string (** class name*)
       * string option
-      (*parent class name*)
+      (** parent class name*)
       * (modifier list * field) list
 [@@deriving show {with_path= false}]
 

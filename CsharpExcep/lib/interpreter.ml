@@ -316,7 +316,7 @@ module Interpreter (M : MONADERROR) = struct
         | [] -> (
           match other with
           | 1 -> return (seq_hd_exn (Hashtbl.to_seq_values ht))
-          (* There are more than one methods with exactly the same or polymorphic types.
+          (** There are more than one methods with exactly the same or polymorphic types.
              Means cannot resolve *)
           | _ -> error "Cannot resolve method" )
         | x :: xs ->
@@ -325,7 +325,7 @@ module Interpreter (M : MONADERROR) = struct
             helper
               (Hashtbl_der.filter ht (check_type pos x_type))
               (pos + 1) xs ctx ) in
-    (* First we filter by name, and then by the number of arguments *)
+    (** First we filter by name, and then by the number of arguments *)
     Hashtbl_der.filter t_class.method_table (fun _ mr ->
         if String.length method_name > String.length mr.method_key then false
         else
@@ -384,10 +384,10 @@ module Interpreter (M : MONADERROR) = struct
     | While (expr, stat) -> (
         let was_main = input_ctx.is_main in
         let rec eval_loop list_stat ctx =
-          (* Check the break, whether it happened, happened - we exit the cycle *)
+          (** Check the break, whether it happened, happened - we exit the cycle *)
           if ctx.runtime_signal = WasBreak then
             match list_stat with
-            (* If there was a StatemetntBlock, then we still need to lower the visibility level *)
+            (** If there was a StatemetntBlock, then we still need to lower the visibility level *)
             | StatementBlock _ ->
                 return
                   { ctx with
@@ -419,9 +419,9 @@ module Interpreter (M : MONADERROR) = struct
                 eval_stat list_stat new_ctx class_table
                 >>= fun l_ctx ->
                 match l_ctx.runtime_signal with
-                (* if we have return  - we interrupt everything and we return the context *)
+                (** if we have return  - we interrupt everything and we return the context *)
                 | WasReturn -> return l_ctx
-                (* we can have continue - so we cycle again*)
+                (** we can have continue - so we cycle again*)
                 | WasContinue ->
                     eval_loop list_stat {l_ctx with runtime_signal= NoSignal}
                 | _ -> eval_loop list_stat l_ctx )
@@ -481,7 +481,7 @@ module Interpreter (M : MONADERROR) = struct
           | None -> return input_ctx )
         | _ -> error "Incorrect type for condition statement" )
     | For (stat_opt, expr_opt, after_list, body_stat) ->
-        (* With a loop for visibility_level always increases, despite the presence/absence of a body block *)
+        (** With a loop for visibility_level always increases, despite the presence/absence of a body block *)
         let was_main = input_ctx.is_main in
         ( match stat_opt with
         | None ->
@@ -497,7 +497,7 @@ module Interpreter (M : MONADERROR) = struct
               class_table )
         >>= fun new_ctx ->
         let rec eval_loop body_st af_list ctx =
-          (* Check the break, whether it happened, happened - we exit the cycle *)
+          (** Check the break, whether it happened, happened - we exit the cycle *)
           if ctx.runtime_signal = WasBreak then
             delete_var_visibility
               { ctx with
@@ -506,14 +506,14 @@ module Interpreter (M : MONADERROR) = struct
               ; visibility_level= ctx.visibility_level - 1
               ; is_main= was_main }
           else
-            (* Standard: we look at the result of the boolean expression, if true - calculate
+            (** Standard: we look at the result of the boolean expression, if true - calculate
                the body and increments after *)
             ( match expr_opt with
             | None -> return {ctx with last_expr_result= VBool true}
             | Some expr_t -> eval_expr expr_t ctx class_table )
             >>= fun cond_ctx ->
             match cond_ctx.last_expr_result with
-            (* If false, it means we are no longer cycling, we return the context with a reduced
+            (** If false, it means we are no longer cycling, we return the context with a reduced
                counter of nested_cycle and visibility_level*)
             | VBool false ->
                 delete_var_visibility
@@ -531,16 +531,16 @@ module Interpreter (M : MONADERROR) = struct
                         >>= fun z_ctx -> interpret_expr_list xs z_ctx
                       else error "Incorrect expression for after body list"
                 in
-                (* Variables inside the block itself will be in a larger visibility_level than
+                (** Variables inside the block itself will be in a larger visibility_level than
                    from the initializer *)
                 eval_stat body_st
                   {cond_ctx with visibility_level= new_ctx.visibility_level + 1}
                   class_table
                 >>= fun body_ctx ->
                 match body_ctx.runtime_signal with
-                (* if we have return  - we interrupt everything and we return the context *)
+                (** if we have return  - we interrupt everything and we return the context *)
                 | WasReturn -> return {body_ctx with is_main= was_main}
-                (* we can have continue - so we cycle again*)
+                (** we can have continue - so we cycle again*)
                 | WasContinue ->
                     interpret_expr_list af_list body_ctx
                     >>= fun after_ctx ->
@@ -554,7 +554,7 @@ module Interpreter (M : MONADERROR) = struct
           { new_ctx with
             count_of_nested_cycles= input_ctx.count_of_nested_cycles + 1 }
     | Return None when input_ctx.current_method_type = Void ->
-        (* If the type is Void, we exit with the Void value set by the signal that was return *)
+        (** If the type is Void, we exit with the Void value set by the signal that was return *)
         return
           {input_ctx with last_expr_result= VVoid; runtime_signal= WasReturn}
     | Return None -> error "Return value type mismatch"
@@ -564,7 +564,7 @@ module Interpreter (M : MONADERROR) = struct
         if ret_type <> input_ctx.current_method_type then
           error "Return value type mismatch"
         else
-          (* We return the context in which there is the result of the expression
+          (** We return the context in which there is the result of the expression
              and set the signal that was return *)
           eval_expr rexpr input_ctx class_table
           >>= fun new_ctx -> return {new_ctx with runtime_signal= WasReturn}
@@ -584,14 +584,14 @@ module Interpreter (M : MONADERROR) = struct
             | ObjNull -> error "NullReferenceException"
             | ObjRef {class_table= table; _} ->
                 ( if
-                  (* We make sure that there is no such name either among local variables
+                  (** We make sure that there is no such name either among local variables
                      or among class fields *)
                   Hashtbl.mem var_ctx.variable_table var_name
                   || Hashtbl.mem table var_name
                 then error "Variable with this name is already defined"
                 else
                   match var_expr_opt with
-                  (* If there is nothing, initialize with the base value *)
+                  (** If there is nothing, initialize with the base value *)
                   | None ->
                       Hashtbl.add var_ctx.variable_table var_name
                         { var_key= var_name
@@ -601,11 +601,11 @@ module Interpreter (M : MONADERROR) = struct
                         ; assignment_count= 0
                         ; visibility_level= var_ctx.visibility_level } ;
                       return var_ctx
-                  (* If there is something, we assign the value calculated on the right *)
+                  (** If there is something, we assign the value calculated on the right *)
                   | Some var_expr -> (
                       check_expr_type var_expr var_ctx class_table
                       >>= fun var_expr_type ->
-                      (* Add to the context variables table what is in the variable expression on the right *)
+                      (** Add to the context variables table what is in the variable expression on the right *)
                       let add_var new_var =
                         eval_expr new_var var_ctx class_table
                         >>= fun ctx_aft_ad ->
@@ -618,14 +618,14 @@ module Interpreter (M : MONADERROR) = struct
                           ; visibility_level= ctx_aft_ad.visibility_level } ;
                         return ctx_aft_ad in
                       match var_expr_type with
-                      (* Null can be assigned to any object *)
+                      (** Null can be assigned to any object *)
                       | CsClass "null" -> (
                         match vars_type with
                         | CsClass _ -> add_var var_expr
                         | _ ->
                             error
                               "Incorrect assign type in variable declaration" )
-                      (* If the type on the right is a class, then we need to check the
+                      (** If the type on the right is a class, then we need to check the
                          type, observing inheritance *)
                       | CsClass class_right -> (
                         match vars_type with
@@ -717,7 +717,7 @@ module Interpreter (M : MONADERROR) = struct
               | StatementBlock _ -> return ()
               | _ -> error "Expected { } in catch block!" in
             let eval_catch eval_ctx = function
-              (*catch cases:
+              (** catch cases:
                 catch {}
                 catch (Exception) {}
               *)
@@ -1107,7 +1107,7 @@ module Interpreter (M : MONADERROR) = struct
     check_expr_type in_expr in_ctx class_table
     >>= fun _ -> eval_helper in_expr in_ctx
 
-  (* At the same time, we run through two lists: the list of expressions passed
+  (** At the same time, we run through two lists: the list of expressions passed
      to the method and the list of parameters in the method entry of the class.*)
   and update_table ht args meth_args ctx class_table =
     fold_left2
