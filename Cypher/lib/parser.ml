@@ -15,10 +15,7 @@ let pspace = take_while (fun ch -> ch = ' ' || ch = '\n')
 let pspaces p = pspace *> p <* pspace
 let pspaceschar chr = pspaces (char chr)
 let pspacesstring str = pspaces (string_ci str)
-
-let pstring =
-  pspaceschar '"' *> take_till (fun ch -> ch = '"' || ch = ' ') <* pspaceschar '"'
-;;
+let pstring = pspaceschar '"' *> take_till (fun ch -> ch = '"') <* pspaceschar '"'
 
 let is_digit = function
   | '0' .. '9' -> true
@@ -85,18 +82,13 @@ let pproperties =
   <* pspaceschar '}'
 ;;
 
-let pwithoutproperties =
-  pspaceschar '{'
-  *> (sep_by (pspaceschar ',') pproperty
-     >>| fun props ->
-     match props with
-     | [] -> None
-     | _ -> Some props)
-  <* pspaceschar '}'
-;;
-
 let pid =
-  pspaces (take_while1 (fun ch -> (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')))
+  pspaces
+    (take_while1 (fun ch ->
+         (ch >= '0' && ch <= '9')
+         || (ch >= 'a' && ch <= 'z')
+         || (ch >= 'A' && ch <= 'Z')
+         || ch = '_'))
 ;;
 
 let pids = sep_by (pspaceschar ':') pid
@@ -104,7 +96,7 @@ let pids = sep_by (pspaceschar ':') pid
 let pnode =
   pspaceschar '('
   *> lift3
-       (fun var label props -> Nodedata (var, label, props))
+       (fun var label props -> NodeData (var, label, props))
        (option None (pid >>| fun id -> Some id))
        (option
           None
@@ -120,9 +112,9 @@ let pnode =
 
 let pedgedata =
   lift3
-    (fun var label props -> Edgedata (var, label, props))
+    (fun var label props -> EdgeData (var, label, props))
     (option None (pid >>| fun id -> Some id))
-    (pspaceschar ':' *> pid)
+    (option None (pspaceschar ':' *> pid >>| fun id -> Some id))
     (option None pproperties)
 ;;
 
@@ -143,9 +135,15 @@ let pcreate = pspacesstring "CREATE" *> pelms >>| fun cmd -> CmdCreate cmd
 let pvar = pid
 let pvars = sep_by (pspaceschar ',') pvar
 let pmatchret = pspacesstring "RETURN" *> pvars >>| fun vars -> CMatchRet vars
-let pmatchwhere = pspacesstring "WHERE" *> pvars >>| fun vars -> CMatchWhere vars
-let pcmd = choice [ pmatchret; pmatchwhere ]
-let pcmdsmatch = lift2 (fun elm cmdmatch -> CmdMatch (elm, cmdmatch)) pelms (many pcmd)
+let pmatchcreate = pspacesstring "CREATE" *> pelms >>| fun cmd -> CMatchCrt cmd
+
+let pmatchdelete =
+  pspacesstring "DETACH" *> pspacesstring "DELETE" *> pvars
+  >>| fun vars -> CMatchDelete vars
+;;
+
+let pcmd = choice [ pmatchret; pmatchcreate; pmatchdelete ]
+let pcmdsmatch = lift2 (fun elm cmdmatch -> CmdMatch (elm, cmdmatch)) pelms (many1 pcmd)
 let pmatch = pspacesstring "MATCH" *> pcmdsmatch
 let pcmds = choice [ pcreate; pmatch ] <* pspaceschar ';'
 let pcmdssep = many pcmds
@@ -155,60 +153,13 @@ let%expect_test _ =
     let parsed =
       parse_with
         pcmdssep
-        {|  CREATE   (  pam  :  Person { name : " Pam " , age : 2+5*3 } )  
-        ,  ( david : Person ) , (pam)-[:PARENT]->(david); 
-        CREATE   (  pam  :  Person { name : " Pam " , age : 2+5*3 } ) ; |}
-    in
-    let open Caml.Format in
-    match parsed with
-    | Error err -> printf "%s%!" err
-    | Ok commands -> printf "%a%!" pp_program commands
-  in
-  [%expect
-    {|
-    [(CmdCreate
-        [(Node
-            (Nodedata ((Some "pam"), (Some ["Person"]),
-               (Some [("name", (EConst (CString "Pam")));
-                       ("age",
-                        (EBinop (Plus, (EConst (CInt 2)),
-                           (EBinop (Star, (EConst (CInt 5)), (EConst (CInt 3))))
-                           )))
-                       ])
-               )));
-          (Node (Nodedata ((Some "david"), (Some ["Person"]), None)));
-          (Edge ((Nodedata ((Some "pam"), None, None)),
-             (Edgedata (None, "PARENT", None)),
-             (Nodedata ((Some "david"), None, None))))
-          ]);
-      (CmdCreate
-         [(Node
-             (Nodedata ((Some "pam"), (Some ["Person"]),
-                (Some [("name", (EConst (CString "Pam")));
-                        ("age",
-                         (EBinop (Plus, (EConst (CInt 2)),
-                            (EBinop (Star, (EConst (CInt 5)), (EConst (CInt 3))))
-                            )))
-                        ])
-                )))
-           ])
-      ]
-     |}]
-;;
+        {|  
+          CREATE (:City{name:"Saint Petersburg"}),(:City{name:"Moscow"});
 
-let%expect_test _ =
-  let _ =
-    let parsed =
-      parse_with
-        pcmdssep
-        {|
-        CREATE (pam :Person :Student {name: "Pam"}),
-                (tom :Person {name: "Tom"}),
-                (kate :Person {name: "Kate"}),
-                (pam)-[:PARENT {role: "Father"}]->(tom),
-                (kate)-[:PARENT]->(jessica:Person{name:"Jessica"});
-        CREATE (bob:Person {name: "Bob"})-[:PARENT {role: "Father"}]->(ann), (a)-[:hello]->(b);
-        MATCH (n: Person);
+          MATCH (c1:City{name:"Saint Petersburg"}), (c2:City{name:"Moscow"}) 
+          CREATE (u:User{name:"Vasya", phone:762042})-[:LIVES_IN]->(c1), (u)-[:BORN_IN]->(c2);
+
+          MATCH (n), ()-[r]->() RETURN n, r;
         |}
     in
     let open Caml.Format in
@@ -220,35 +171,206 @@ let%expect_test _ =
     {|
     [(CmdCreate
         [(Node
-            (Nodedata ((Some "pam"), (Some ["Person"; "Student"]),
-               (Some [("name", (EConst (CString "Pam")))]))));
+            (NodeData (None, (Some ["City"]),
+               (Some [("name", (EConst (CString "Saint Petersburg")))]))));
           (Node
-             (Nodedata ((Some "tom"), (Some ["Person"]),
-                (Some [("name", (EConst (CString "Tom")))]))));
+             (NodeData (None, (Some ["City"]),
+                (Some [("name", (EConst (CString "Moscow")))]))))
+          ]);
+      (CmdMatch (
+         [(Node
+             (NodeData ((Some "c1"), (Some ["City"]),
+                (Some [("name", (EConst (CString "Saint Petersburg")))]))));
+           (Node
+              (NodeData ((Some "c2"), (Some ["City"]),
+                 (Some [("name", (EConst (CString "Moscow")))]))))
+           ],
+         [(CMatchCrt
+             [(Edge (
+                 (NodeData ((Some "u"), (Some ["User"]),
+                    (Some [("name", (EConst (CString "Vasya")));
+                            ("phone", (EConst (CInt 762042)))])
+                    )),
+                 (EdgeData (None, (Some "LIVES_IN"), None)),
+                 (NodeData ((Some "c1"), None, None))));
+               (Edge ((NodeData ((Some "u"), None, None)),
+                  (EdgeData (None, (Some "BORN_IN"), None)),
+                  (NodeData ((Some "c2"), None, None))))
+               ])
+           ]
+         ));
+      (CmdMatch (
+         [(Node (NodeData ((Some "n"), None, None)));
+           (Edge ((NodeData (None, None, None)),
+              (EdgeData ((Some "r"), None, None)), (NodeData (None, None, None))
+              ))
+           ],
+         [(CMatchRet ["n"; "r"])]))
+      ]
+          |}]
+;;
+
+let%expect_test _ =
+  let _ =
+    let parsed =
+      parse_with
+        pcmdssep
+        {|  
+        CREATE (pam :Person {name: "Pam", age: 40}),
+                (tom :Person :Student {name: "Tom", age: 15}),
+                (kate :Person {name: "Kate", age: 40});
+
+        MATCH (n {age: 40}) RETURN n;
+
+        MATCH (n: Student) RETURN n;
+        |}
+    in
+    let open Caml.Format in
+    match parsed with
+    | Error err -> printf "%s%!" err
+    | Ok commands -> printf "%a%!" pp_program commands
+  in
+  [%expect
+    {|
+    [(CmdCreate
+        [(Node
+            (NodeData ((Some "pam"), (Some ["Person"]),
+               (Some [("name", (EConst (CString "Pam")));
+                       ("age", (EConst (CInt 40)))])
+               )));
           (Node
-             (Nodedata ((Some "kate"), (Some ["Person"]),
-                (Some [("name", (EConst (CString "Kate")))]))));
-          (Edge ((Nodedata ((Some "pam"), None, None)),
-             (Edgedata (None, "PARENT",
-                (Some [("role", (EConst (CString "Father")))]))),
-             (Nodedata ((Some "tom"), None, None))));
-          (Edge ((Nodedata ((Some "kate"), None, None)),
-             (Edgedata (None, "PARENT", None)),
-             (Nodedata ((Some "jessica"), (Some ["Person"]),
-                (Some [("name", (EConst (CString "Jessica")))])))
+             (NodeData ((Some "tom"), (Some ["Person"; "Student"]),
+                (Some [("name", (EConst (CString "Tom")));
+                        ("age", (EConst (CInt 15)))])
+                )));
+          (Node
+             (NodeData ((Some "kate"), (Some ["Person"]),
+                (Some [("name", (EConst (CString "Kate")));
+                        ("age", (EConst (CInt 40)))])
+                )))
+          ]);
+      (CmdMatch (
+         [(Node
+             (NodeData ((Some "n"), None, (Some [("age", (EConst (CInt 40)))]))))
+           ],
+         [(CMatchRet ["n"])]));
+      (CmdMatch ([(Node (NodeData ((Some "n"), (Some ["Student"]), None)))],
+         [(CMatchRet ["n"])]))
+      ]
+          |}]
+;;
+
+let%expect_test _ =
+  let _ =
+    let parsed =
+      parse_with
+        pcmdssep
+        {|  
+        CREATE (pam :Person {name: "Pam", age: 40}),
+                (tom :Person :Student {name: "Tom", age: 15}),
+                (ann :Person {name: "Ann", age: 25}),
+                (pam)-[:PARENT {role: "Mother"}]->(tom),
+                (ann)-[:PARENT {role: "Mother"}]->(jessica:Person{name:"Jessica", age: 5});
+
+        MATCH (tom {name: "Tom", age: 15}) 
+        CREATE (bob:Person {name: "Bob", age: 38})-[:PARENT {role: "Father"}]->(tom);
+
+        MATCH (p1 {name: "Pam"}), (p2 {name: "Ann"}) CREATE (p1)-[:SISTER {role: "Elder sister"}]->(p2);
+
+        MATCH ()-[r:SISTER]->() RETURN r;
+
+        MATCH (tom {name: "Tom", age: 15}) DETACH DELETE tom;
+
+        MATCH (n) RETURN n;
+        |}
+    in
+    let open Caml.Format in
+    match parsed with
+    | Error err -> printf "%s%!" err
+    | Ok commands -> printf "%a%!" pp_program commands
+  in
+  [%expect
+    {|
+    [(CmdCreate
+        [(Node
+            (NodeData ((Some "pam"), (Some ["Person"]),
+               (Some [("name", (EConst (CString "Pam")));
+                       ("age", (EConst (CInt 40)))])
+               )));
+          (Node
+             (NodeData ((Some "tom"), (Some ["Person"; "Student"]),
+                (Some [("name", (EConst (CString "Tom")));
+                        ("age", (EConst (CInt 15)))])
+                )));
+          (Node
+             (NodeData ((Some "ann"), (Some ["Person"]),
+                (Some [("name", (EConst (CString "Ann")));
+                        ("age", (EConst (CInt 25)))])
+                )));
+          (Edge ((NodeData ((Some "pam"), None, None)),
+             (EdgeData (None, (Some "PARENT"),
+                (Some [("role", (EConst (CString "Mother")))]))),
+             (NodeData ((Some "tom"), None, None))));
+          (Edge ((NodeData ((Some "ann"), None, None)),
+             (EdgeData (None, (Some "PARENT"),
+                (Some [("role", (EConst (CString "Mother")))]))),
+             (NodeData ((Some "jessica"), (Some ["Person"]),
+                (Some [("name", (EConst (CString "Jessica")));
+                        ("age", (EConst (CInt 5)))])
+                ))
              ))
           ]);
-      (CmdCreate
-         [(Edge (
-             (Nodedata ((Some "bob"), (Some ["Person"]),
-                (Some [("name", (EConst (CString "Bob")))]))),
-             (Edgedata (None, "PARENT",
-                (Some [("role", (EConst (CString "Father")))]))),
-             (Nodedata ((Some "ann"), None, None))));
-           (Edge ((Nodedata ((Some "a"), None, None)),
-              (Edgedata (None, "hello", None)),
-              (Nodedata ((Some "b"), None, None))))
-           ]);
-      (CmdMatch ([(Node (Nodedata ((Some "n"), (Some ["Person"]), None)))], []))]
-     |}]
+      (CmdMatch (
+         [(Node
+             (NodeData ((Some "tom"), None,
+                (Some [("name", (EConst (CString "Tom")));
+                        ("age", (EConst (CInt 15)))])
+                )))
+           ],
+         [(CMatchCrt
+             [(Edge (
+                 (NodeData ((Some "bob"), (Some ["Person"]),
+                    (Some [("name", (EConst (CString "Bob")));
+                            ("age", (EConst (CInt 38)))])
+                    )),
+                 (EdgeData (None, (Some "PARENT"),
+                    (Some [("role", (EConst (CString "Father")))]))),
+                 (NodeData ((Some "tom"), None, None))))
+               ])
+           ]
+         ));
+      (CmdMatch (
+         [(Node
+             (NodeData ((Some "p1"), None,
+                (Some [("name", (EConst (CString "Pam")))]))));
+           (Node
+              (NodeData ((Some "p2"), None,
+                 (Some [("name", (EConst (CString "Ann")))]))))
+           ],
+         [(CMatchCrt
+             [(Edge ((NodeData ((Some "p1"), None, None)),
+                 (EdgeData (None, (Some "SISTER"),
+                    (Some [("role", (EConst (CString "Elder sister")))]))),
+                 (NodeData ((Some "p2"), None, None))))
+               ])
+           ]
+         ));
+      (CmdMatch (
+         [(Edge ((NodeData (None, None, None)),
+             (EdgeData ((Some "r"), (Some "SISTER"), None)),
+             (NodeData (None, None, None))))
+           ],
+         [(CMatchRet ["r"])]));
+      (CmdMatch (
+         [(Node
+             (NodeData ((Some "tom"), None,
+                (Some [("name", (EConst (CString "Tom")));
+                        ("age", (EConst (CInt 15)))])
+                )))
+           ],
+         [(CMatchDelete ["tom"])]));
+      (CmdMatch ([(Node (NodeData ((Some "n"), None, None)))],
+         [(CMatchRet ["n"])]))
+      ]
+          |}]
 ;;

@@ -15,29 +15,31 @@ type expr =
   | EBinop of binop * expr * expr
 [@@deriving show { with_path = false }]
 
+(* {name:"Daniel"} *)
 type property = string * expr [@@deriving show { with_path = false }]
 
-type edgedata = Edgedata of string option * string * property list option
+(* [edge1 : PARENT { role: "Father" }] *)
+type edgedata = EdgeData of string option * string option * property list option
 [@@deriving show { with_path = false }]
 
-type nodedata = Nodedata of string option * string list option * property list option
+(* (node1 : PERSON { name: "Daniel" }) *)
+type nodedata = NodeData of string option * string list option * property list option
 [@@deriving show { with_path = false }]
 
 type elm =
-  | Node of nodedata
-  | Edge of nodedata * edgedata * nodedata (* (s1)-[:s2]->(s2) *)
+  | Node of nodedata (* (nodedata) *)
+  | Edge of nodedata * edgedata * nodedata (* (nodedata)-[edgedata]->(nodedata) *)
 [@@deriving show { with_path = false }]
 
 type cmdmatch =
-  | CMatchRet of string list
-  | CMatchCrt of elm list
-  | CMatchWhere of string list
+  | CMatchRet of string list (* RETURN vars *)
+  | CMatchDelete of string list (* DETACH DELETE vars *)
+  | CMatchCrt of elm list (* CREATE elms *)
 [@@deriving show { with_path = false }]
 
 type command =
-  | CmdCreate of elm list
-  | CmdMatch of elm list * cmdmatch list
-(* | CmdReturn of string list *)
+  | CmdCreate of elm list (* CREATE elm *)
+  | CmdMatch of elm list * cmdmatch list (* MATCH elms cmdmatch *)
 [@@deriving show { with_path = false }]
 
 type program = command list [@@deriving show { with_path = false }]
