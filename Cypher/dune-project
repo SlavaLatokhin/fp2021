@@ -23,6 +23,7 @@
  (depends
   dune
   angstrom
+  ocamlgraph
   (ppx_inline_test :with-test)
   qcheck-core
   ppx_deriving

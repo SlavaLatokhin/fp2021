@@ -12,6 +12,7 @@ bug-reports: "https://github.com/danielsheh02/fp2021/issues"
 depends: [
   "dune" {>= "2.8"}
   "angstrom"
+  "ocamlgraph"
   "ppx_inline_test" {with-test}
   "qcheck-core"
   "ppx_deriving"
