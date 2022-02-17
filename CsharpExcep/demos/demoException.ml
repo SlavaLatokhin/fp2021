@@ -6,9 +6,9 @@ open
 
 open Csharp_lib.Interpreter.Interpreter (Csharp_lib.Interpret_classes.Result)
 
-let test_interp test_val cl_t =
-  match interpret_classes test_val cl_t with
-  | Error m -> print_endline m ; Hashtbl.clear cl_t
+let test_interp class_list class_table =
+  match interpret_classes class_list class_table with
+  | Error m -> print_endline m ; Hashtbl.clear class_table
   | Ok load_table -> (
     match start_interpreting load_table with
     | Error m -> print_endline m ; Hashtbl.clear load_table

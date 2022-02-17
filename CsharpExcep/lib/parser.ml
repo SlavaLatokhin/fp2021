@@ -266,15 +266,6 @@ let class_method =
   >>= fun stat_block ->
   return (Method (method_type, method_name, params_list, stat_block))
 
-let constructor =
-  Expression.ident_object
-  >>= fun name ->
-  token "("
-  >> sep_by get_params (token ",")
-  >>= fun params_list ->
-  token ")" >> Statement.statement_block
-  >>= fun stat_block -> return (Constructor (name, params_list, stat_block))
-
 let field =
   let helper =
     Expression.ident_object
@@ -290,8 +281,7 @@ let field =
 let class_elements =
   modifier_list
   >>= fun modifiers ->
-  field <|> class_method <|> constructor
-  >>= fun class_elem -> return (modifiers, class_elem)
+  field <|> class_method >>= fun class_elem -> return (modifiers, class_elem)
 
 let parse_class =
   modifier_list

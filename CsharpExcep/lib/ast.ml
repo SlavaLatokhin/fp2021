@@ -13,20 +13,8 @@ type values =
   | VClass of object_references
 [@@deriving show {with_path= false}]
 
-and field_references =
-  { key: string
-  ; field_type: types
-  ; field_value: values
-  ; is_const: bool
-  ; assignment_count: int }
-
-and obj =
-  { class_key: string
-  ; parent_key: string option
-  ; class_table: (string, field_references) Hashtbl_der.t
-  ; number: int }
-
-and object_references = ObjNull | ObjRef of obj
+and object_references = ObjNull | ObjRef of string * string option
+(*class key and parent key*)
 
 type expr =
   | Plus of expr * expr
@@ -43,11 +31,11 @@ type expr =
   | More of expr * expr
   | LessOrEqual of expr * expr
   | MoreOrEqual of expr * expr
-  | Null
   | PostInc of expr
   | PostDec of expr
   | PrefInc of expr
   | PrefDec of expr
+  | Null
   | ConstExpr of values
   | IdentVar of string
   | ClassCreate of string * expr list
@@ -77,7 +65,6 @@ and statement =
 and field =
   | VariableField of types * (string * expr option) list
   | Method of types * string * (types * string) list * statement
-  | Constructor of string * (types * string) list * statement
 [@@deriving show {with_path= false}]
 
 and class_dec =
@@ -88,39 +75,3 @@ and class_dec =
       (* parent class name*)
       * (modifier list * field) list
 [@@deriving show {with_path= false}]
-
-let get_obj_value = function VClass o -> o | _ -> ObjNull
-
-let get_default_value = function
-  | Int -> VInt 0
-  | String -> VString ""
-  | CsClass _ -> VClass ObjNull
-  | Bool -> VBool false
-  | Void -> VVoid
-
-let get_obj_num = function
-  | ObjNull -> raise (Invalid_argument "NullReferenceException")
-  | ObjRef {number= n; _} -> n
-
-let get_obj_info = function
-  | ObjNull -> raise (Invalid_argument "NullReferenceException")
-  | ObjRef {class_key= key; class_table= table; number= n; _} -> (key, table, n)
-
-let get_obj_fields = function
-  | ObjNull -> raise (Invalid_argument "NullReferenceException")
-  | ObjRef {class_table= frt; _} -> frt
-
-let get_field_list = function Class (_, _, _, f_list) -> List.map snd f_list
-
-let convert_pair = function
-  | t, p_list -> List.map (fun p -> match p with s, f -> (t, s, f)) p_list
-
-let get_field_pairs in_class =
-  List.concat
-    (List.map convert_pair
-       (List.filter_map
-          (fun field ->
-            match field with
-            | VariableField (t_f, pair_list) -> Some (t_f, pair_list)
-            | _ -> None )
-          (get_field_list in_class) ) )

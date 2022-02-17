@@ -1,11 +1,7 @@
   $ (cd ../../../../default && demos/demoInterpreter.exe) 
   --- Assign test ----
   
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table =
+  { variable_table =
     [["a" ->
        { var_type = Int; var_key = "a"; var_value = VInt (1); is_const = false;
          assignment_count = 1; visibility_level = 0 }
@@ -20,18 +16,12 @@
   
   ]]
   ; current_method_type = Void; last_expr_result = VInt (3);
-  runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
-  count_of_obj = 0; is_creation = false
+  runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 0
   }
   
   --- Arithmetic test ---
   
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table =
+  { variable_table =
     [["a" ->
        { var_type = Int; var_key = "a"; var_value = VInt (10);
          is_const = false; assignment_count = 2; visibility_level = 0 }
@@ -102,26 +92,16 @@
   
   ]]
   ; current_method_type = Void; last_expr_result = VString ("10a");
-  runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
-  count_of_obj = 0; is_creation = false
+  runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 0
   }
   
   --- Boolean expression test ---
   
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table =
+  { variable_table =
     [["v11" ->
        { var_type = Int; var_key = "v11"; var_value = VInt (1);
          is_const = false; assignment_count = 1; visibility_level = 0 }
     
-  "v12" ->
-   { var_type = Int; var_key = "v12"; var_value = VInt (1); is_const = false;
-     assignment_count = 2; visibility_level = 0 }
-  
   "a" ->
    { var_type = Int; var_key = "a"; var_value = VInt (1); is_const = false;
      assignment_count = 1; visibility_level = 0 }
@@ -133,29 +113,6 @@
   "b" ->
    { var_type = Int; var_key = "b"; var_value = VInt (50); is_const = false;
      assignment_count = 1; visibility_level = 0 }
-  
-  "v13" ->
-   { var_type = Int; var_key = "v13"; var_value = VInt (1); is_const = false;
-     assignment_count = 2; visibility_level = 0 }
-  
-  "p3" ->
-   { var_type = CsClass ("Person"); var_key = "p3";
-     var_value =
-     VClass (ObjRef ({ class_key = "Person"; parent_key = None;
-                       class_table =
-                       [["age" ->
-                          { key = "age"; field_type = Int;
-                            field_value = VInt (20); is_const = false;
-                            assignment_count = 0 }
-                       
-  "name" ->
-   { key = "name"; field_type = String; field_value = VString ("Bob");
-     is_const = false; assignment_count = 0 }
-  
-  ]]
-  ; number = 1 })); is_const = false; assignment_count = 1;
-  visibility_level = 0
-  }
   
   "v5" ->
    { var_type = Int; var_key = "v5"; var_value = VInt (0); is_const = false;
@@ -181,25 +138,6 @@
    { var_type = Int; var_key = "v6"; var_value = VInt (1); is_const = false;
      assignment_count = 2; visibility_level = 0 }
   
-  "p2" ->
-   { var_type = CsClass ("Person"); var_key = "p2";
-     var_value =
-     VClass (ObjRef ({ class_key = "Person"; parent_key = None;
-                       class_table =
-                       [["age" ->
-                          { key = "age"; field_type = Int;
-                            field_value = VInt (30); is_const = false;
-                            assignment_count = 0 }
-                       
-  "name" ->
-   { key = "name"; field_type = String; field_value = VString ("Alice");
-     is_const = false; assignment_count = 0 }
-  
-  ]]
-  ; number = 2 })); is_const = false; assignment_count = 1;
-  visibility_level = 0
-  }
-  
   "v9" ->
    { var_type = Int; var_key = "v9"; var_value = VInt (1); is_const = false;
      assignment_count = 2; visibility_level = 0 }
@@ -207,25 +145,6 @@
   "v8" ->
    { var_type = Int; var_key = "v8"; var_value = VInt (1); is_const = false;
      assignment_count = 2; visibility_level = 0 }
-  
-  "p1" ->
-   { var_type = CsClass ("Person"); var_key = "p1";
-     var_value =
-     VClass (ObjRef ({ class_key = "Person"; parent_key = None;
-                       class_table =
-                       [["age" ->
-                          { key = "age"; field_type = Int;
-                            field_value = VInt (20); is_const = false;
-                            assignment_count = 0 }
-                       
-  "name" ->
-   { key = "name"; field_type = String; field_value = VString ("Bob");
-     is_const = false; assignment_count = 0 }
-  
-  ]]
-  ; number = 1 })); is_const = false; assignment_count = 1;
-  visibility_level = 0
-  }
   
   "s2" ->
    { var_type = String; var_key = "s2"; var_value = VString ("b");
@@ -249,9 +168,7 @@
   
   ]]
   ; current_method_type = Void; last_expr_result = VInt (1);
-  runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
-  count_of_obj = 2; is_creation = false
+  runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 0
   }
   
   --- Cycles test ---
@@ -262,20 +179,14 @@
   1
   0
   2
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table =
+  { variable_table =
     [["i" ->
        { var_type = Int; var_key = "i"; var_value = VInt (3); is_const = false;
          assignment_count = 4; visibility_level = 1 }
     
   ]]
   ; current_method_type = Void; last_expr_result = VBool (false);
-  runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycles = 0; visibility_level = 2; prev_ctx = None;
-  count_of_obj = 0; is_creation = false
+  runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 2
   }
   
   --- While test ---
@@ -284,30 +195,20 @@
   3
   2
   1
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table =
+  { variable_table =
     [["i" ->
        { var_type = Int; var_key = "i"; var_value = VInt (0); is_const = false;
          assignment_count = 5; visibility_level = 0 }
     
   ]]
   ; current_method_type = Void; last_expr_result = VBool (false);
-  runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
-  count_of_obj = 0; is_creation = false
+  runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 0
   }
   
   --- If test ---
   
   a
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table =
+  { variable_table =
     [["a" ->
        { var_type = Int; var_key = "a"; var_value = VInt (8); is_const = false;
          assignment_count = 1; visibility_level = 0 }
@@ -318,19 +219,13 @@
   
   ]]
   ; current_method_type = Void; last_expr_result = VString ("a");
-  runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
-  count_of_obj = 0; is_creation = false
+  runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 0
   }
   
   --- If else if test ---
   
   a==b
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table =
+  { variable_table =
     [["a" ->
        { var_type = Int; var_key = "a"; var_value = VInt (6); is_const = false;
          assignment_count = 1; visibility_level = 0 }
@@ -341,25 +236,91 @@
   
   ]]
   ; current_method_type = Void; last_expr_result = VString ("a==b");
-  runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
-  count_of_obj = 0; is_creation = false
+  runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 0
   }
   
   --- Visibility level test ---
   
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table =
+  { variable_table =
     [["a" ->
        { var_type = Int; var_key = "a"; var_value = VInt (1); is_const = false;
          assignment_count = 11; visibility_level = 0 }
     
+  "n" ->
+   { var_type = Int; var_key = "n"; var_value = VInt (3); is_const = false;
+     assignment_count = 1; visibility_level = 2 }
+  
+  "n" ->
+   { var_type = Int; var_key = "n"; var_value = VInt (3); is_const = false;
+     assignment_count = 1; visibility_level = 2 }
+  
+  "n" ->
+   { var_type = Int; var_key = "n"; var_value = VInt (3); is_const = false;
+     assignment_count = 1; visibility_level = 2 }
+  
+  "n" ->
+   { var_type = Int; var_key = "n"; var_value = VInt (3); is_const = false;
+     assignment_count = 1; visibility_level = 1 }
+  
+  "n" ->
+   { var_type = Int; var_key = "n"; var_value = VInt (3); is_const = false;
+     assignment_count = 1; visibility_level = 1 }
+  
+  "n" ->
+   { var_type = Int; var_key = "n"; var_value = VInt (3); is_const = false;
+     assignment_count = 1; visibility_level = 1 }
+  
+  "z" ->
+   { var_type = Int; var_key = "z"; var_value = VInt (4); is_const = false;
+     assignment_count = 1; visibility_level = 2 }
+  
+  "z" ->
+   { var_type = Int; var_key = "z"; var_value = VInt (4); is_const = false;
+     assignment_count = 1; visibility_level = 2 }
+  
+  "z" ->
+   { var_type = Int; var_key = "z"; var_value = VInt (4); is_const = false;
+     assignment_count = 1; visibility_level = 2 }
+  
+  "z" ->
+   { var_type = Int; var_key = "z"; var_value = VInt (4); is_const = false;
+     assignment_count = 1; visibility_level = 1 }
+  
+  "z" ->
+   { var_type = Int; var_key = "z"; var_value = VInt (4); is_const = false;
+     assignment_count = 1; visibility_level = 1 }
+  
+  "z" ->
+   { var_type = Int; var_key = "z"; var_value = VInt (4); is_const = false;
+     assignment_count = 1; visibility_level = 1 }
+  
   "b" ->
    { var_type = Int; var_key = "b"; var_value = VInt (2); is_const = false;
      assignment_count = 4; visibility_level = 0 }
+  
+  "m" ->
+   { var_type = Int; var_key = "m"; var_value = VInt (2); is_const = false;
+     assignment_count = 1; visibility_level = 2 }
+  
+  "m" ->
+   { var_type = Int; var_key = "m"; var_value = VInt (2); is_const = false;
+     assignment_count = 1; visibility_level = 2 }
+  
+  "m" ->
+   { var_type = Int; var_key = "m"; var_value = VInt (2); is_const = false;
+     assignment_count = 1; visibility_level = 2 }
+  
+  "m" ->
+   { var_type = Int; var_key = "m"; var_value = VInt (2); is_const = false;
+     assignment_count = 1; visibility_level = 1 }
+  
+  "m" ->
+   { var_type = Int; var_key = "m"; var_value = VInt (2); is_const = false;
+     assignment_count = 1; visibility_level = 1 }
+  
+  "m" ->
+   { var_type = Int; var_key = "m"; var_value = VInt (2); is_const = false;
+     assignment_count = 1; visibility_level = 1 }
   
   "c" ->
    { var_type = Int; var_key = "c"; var_value = VInt (3); is_const = false;
@@ -371,56 +332,38 @@
   
   ]]
   ; current_method_type = Void; last_expr_result = VInt (3);
-  runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycles = 0; visibility_level = 1; prev_ctx = None;
-  count_of_obj = 0; is_creation = false
+  runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 1
   }
   
   --- Break test ---
   
   0
   1
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table = [[]]
-    ; current_method_type = Void; last_expr_result = VInt (3);
-    runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-    count_of_nested_cycles = 0; visibility_level = 1; prev_ctx = None;
-    count_of_obj = 0; is_creation = false }
+  { variable_table = [[]]
+    ; current_method_type = Void; last_expr_result = VInt (2);
+    runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 1
+    }
   
   --- Continue test ---
   
   0
   1
   3
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table = [[]]
+  { variable_table = [[]]
     ; current_method_type = Void; last_expr_result = VBool (false);
-    runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-    count_of_nested_cycles = 0; visibility_level = 1; prev_ctx = None;
-    count_of_obj = 0; is_creation = false }
+    runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 1
+    }
   
   --- Recursion test ---
   
-  { current_o =
-    ObjRef ({ class_key = "Program"; parent_key = None; class_table = [[]]
-                                                        ;
-              number = 0 });
-    variable_table =
+  { variable_table =
     [["res" ->
        { var_type = Int; var_key = "res"; var_value = VInt (120);
          is_const = false; assignment_count = 1; visibility_level = 0 }
     
   ]]
   ; current_method_type = Void; last_expr_result = VInt (120);
-  runtime_signal = NoSignal; is_main = true; curr_constructor = None;
-  count_of_nested_cycles = 0; visibility_level = 0; prev_ctx = None;
-  count_of_obj = 0; is_creation = false
+  runtime_signal = NoSignal; count_of_nested_cycles = 0; visibility_level = 0
   }
   
   --- Const variables test ---

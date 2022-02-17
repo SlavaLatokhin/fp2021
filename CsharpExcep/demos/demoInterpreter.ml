@@ -6,9 +6,9 @@ open
 
 open Csharp_lib.Interpreter.Interpreter (Csharp_lib.Interpret_classes.Result)
 
-let test_interp test_val cl_t =
-  match interpret_classes test_val cl_t with
-  | Error m -> print_endline m ; Hashtbl.clear cl_t
+let test_interp class_list class_table =
+  match interpret_classes class_list class_table with
+  | Error m -> print_endline m ; Hashtbl.clear class_table
   | Ok load_table -> (
     match start_interpreting load_table with
     | Error m -> print_endline m ; Hashtbl.clear load_table
@@ -114,28 +114,8 @@ let parse_input =
                               if (s2 != "a") {
                                   v11 = 1;
                               }
-                              Person p1 = new Person(20, "Bob"), p2 = new Person(30, "Alice"), p3 = p1;
-                              int v12 = 0, v13 = 0;
-                              if (p1 != p2) {
-                                  v12 = 1;
-                              }
-                              if (p1 == p3) {
-                                  v13 = 1;
-                              }
                        }
                     }
-
-                   class Person
-                   {
-                   int age;
-                   string name;
-
-                   public Person(int agew, string namew) {
-                       age = agew;
-                       name = namew;
-                   }
-
-                   }
                      |} )
 
 let () = test_interp parse_input (Hashtbl.create 128)
