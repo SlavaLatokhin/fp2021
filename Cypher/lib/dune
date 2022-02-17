@@ -3,6 +3,6 @@
  (public_name Cypher.Lib)
  (modules Ast Parser Interpreter)
  (libraries ocamlgraph base angstrom ppx_show.runtime)
+ (inline_tests)
  (preprocess
-  (pps ppx_expect ppx_deriving.show ppx_deriving.eq ppx_deriving.ord))
- (inline_tests))
+  (pps ppx_expect ppx_deriving.show ppx_deriving.eq ppx_deriving.ord)))

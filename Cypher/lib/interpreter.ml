@@ -193,6 +193,11 @@ let send_check_datas dprops props labels var elm env fdatas = function
     | None -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas))
 ;;
 
+(* 
+The function finds all edges between two nodes, 
+iterates one by one and sends it for comparison 
+with user-specified data. 
+*)
 let iter_fedges graph env fnode1 fnode2 stbledges elm1 elm2 e =
   let fedges = Graph.find_all_edges graph elm1 elm2 in
   List.fold_left
