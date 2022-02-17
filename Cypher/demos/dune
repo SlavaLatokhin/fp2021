@@ -1,0 +1,14 @@
+(executable
+ (name demoCypherParse)
+ (modules demoCypherParse)
+ (public_name demoCypherParse)
+ (libraries Cypher.Lib stdio))
+
+(executable
+ (name demoCypherInterpret)
+ (modules demoCypherInterpret)
+ (public_name demoCypherInterpret)
+ (libraries Cypher.Lib stdio))
+
+(cram
+ (deps ./demoCypherParse.exe ./demoCypherInterpret.exe))

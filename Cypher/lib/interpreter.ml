@@ -17,6 +17,13 @@ type vproperties = vproperty list [@@deriving show { with_path = false }]
 type elm_data_src_dst = int * string list * vproperties
 [@@deriving show { with_path = false }]
 
+(* 
+Uses the same type for vertices and edges to make 
+it easier to store data in a single environment.
+
+Node: (id, labels, vproperties), (None, None) 
+Edge: (id. labels, vproperties), (src, dst)
+*)
 type elm_data =
   (int * string list * vproperties) * (elm_data_src_dst option * elm_data_src_dst option)
 [@@deriving show { with_path = false }]
@@ -57,6 +64,16 @@ type err =
   | DivByZero
   | NotBound of string
   | NoLabelEdge of string
+[@@deriving show { with_path = false }]
+
+(* 
+This type is needed to define commands that 
+look for the necessary elements in the environment. 
+Helps for code reuse.
+*)
+type cmdvars =
+  | Delete
+  | Return
 [@@deriving show { with_path = false }]
 
 let rec interpret_expr = function
@@ -270,37 +287,32 @@ let interp_crt elms env =
     elms
 ;;
 
-let interp_ret vars env =
-  if List.length vars <= List.length env
-  then
-    if List.for_all (fun var -> List.mem_assoc var env) vars
-    then (
-      let processed = Array.make (List.length env) 0 in
-      let i = ref 0 in
-      List.iter
-        (fun var ->
-          List.iter
-            (fun oneenv ->
-              match oneenv with
-              | evar, eelm ->
-                (match eelm with
-                | (id, _, _), (_, _) ->
-                  if var = evar && not (Array.exists (fun aid -> id = aid) processed)
-                  then (
-                    processed.(!i) <- id;
-                    i := !i + 1;
-                    Format.fprintf Format.std_formatter "%a\n%!" pp_elm_data eelm;
-                    Format.fprintf
-                      Format.std_formatter
-                      "----------------------------------\n%!")))
-            env)
-        vars;
-      Result.ok env)
-    else Result.error (NotBound "Undefined variable or nothing was found.")
-  else Result.error (NotBound "Undefined variable or nothing was found.")
+let exe_cmd_vars eelm id labels props src dst graph env cmd =
+  match src, dst with
+  | Some src, Some dst ->
+    (match cmd with
+    | Delete ->
+      Result.ok (Graph.remove_edge graph (src, (None, None)) (dst, (None, None)), env)
+    | Return ->
+      Format.fprintf
+        Format.std_formatter
+        "Edge: %a\n----------------------------------\n%!"
+        pp_elm_data
+        eelm;
+      Result.ok (graph, env))
+  | _, _ ->
+    (match cmd with
+    | Delete -> Result.ok (Graph.remove_vertex graph eelm, env)
+    | Return ->
+      Format.fprintf
+        Format.std_formatter
+        "Node: %a\n----------------------------------\n%!"
+        pp_elm_data_src_dst
+        (id, labels, props);
+      Result.ok (graph, env))
 ;;
 
-let interp_del vars graph env =
+let interp_cmd_vars vars graph env cmd =
   if List.length vars <= List.length env
   then
     if List.for_all (fun var -> List.mem_assoc var env) vars
@@ -308,35 +320,27 @@ let interp_del vars graph env =
       let processed = Array.make (List.length env) 0 in
       let i = ref 0 in
       List.fold_left
-        (fun env var ->
-          let* graph, env = env in
+        (fun acc var ->
+          let* graph, env = acc in
           List.fold_left
             (fun acc oneenv ->
               let* graph, env = acc in
               match oneenv with
               | evar, eelm ->
                 (match eelm with
-                | (id, _, _), (src, dst) ->
+                | (id, labels, props), (src, dst) ->
                   if var = evar && not (Array.exists (fun aid -> id = aid) processed)
                   then (
-                    match src, dst with
-                    | Some src, Some dst ->
-                      processed.(!i) <- id;
-                      i := !i + 1;
-                      Result.ok
-                        ( Graph.remove_edge graph (src, (None, None)) (dst, (None, None))
-                        , env )
-                    | _, _ ->
-                      processed.(!i) <- id;
-                      i := !i + 1;
-                      Result.ok (Graph.remove_vertex graph eelm, env))
+                    processed.(!i) <- id;
+                    i := !i + 1;
+                    exe_cmd_vars eelm id labels props src dst graph env cmd)
                   else Result.ok (graph, env)))
             (Result.ok (graph, env))
             env)
         (Result.ok (graph, env))
         vars)
-    else Result.ok (graph, env)
-  else Result.ok (graph, env)
+    else Result.error (NotBound "Undefined variable or nothing was found.")
+  else Result.error (NotBound "Undefined variable or nothing was found.")
 ;;
 
 let interp_match elms env commands =
@@ -363,11 +367,9 @@ let interp_match elms env commands =
     (fun acc cmd ->
       let* graph, env = acc in
       match cmd with
-      | CMatchRet vars ->
-        let* env = interp_ret vars env in
-        Result.ok (graph, env)
-      | CMatchDelete vars -> interp_del vars graph env
-      | CMatchCrt elms -> interp_crt elms (graph, env))
+      | CMatchCrt elms -> interp_crt elms (graph, env)
+      | CMatchRet vars -> interp_cmd_vars vars graph env Return
+      | CMatchDelete vars -> interp_cmd_vars vars graph env Delete)
     (Result.ok env)
     commands
 ;;
@@ -387,153 +389,4 @@ let interpret_program commands =
       | Ok (graph, _) -> Result.ok (graph, []))
     (Result.ok (graph, []))
     commands
-;;
-
-let%expect_test _ =
-  let _ =
-    let parsed =
-      Parser.parse_with
-        Parser.pcmdssep
-        {|
-          CREATE (:City{name:"Saint Petersburg"}),(:City{name:"Moscow"});
-
-          MATCH (c1:City{name:"Saint Petersburg"}), (c2:City{name:"Moscow"}) 
-          CREATE (u:User{name:"Vasya", phone:736493})-[:LIVES_IN]->(c1), (u)-[:BORN_IN]->(c2);
-
-          MATCH (n), ()-[r]->() RETURN n, r;
-        |}
-    in
-    let open Caml.Format in
-    match parsed with
-    | Error err -> printf "%s%!" err
-    | Ok commands ->
-      (match interpret_program commands with
-      | Error err -> printf "%a%!" pp_err err
-      | Ok (_, _) -> printf "")
-  in
-  [%expect
-    {|
-    Vertex created
-    Vertex created
-    Vertex created
-    Edge created
-    Edge created
-    ((3, ["User"], [("phone", (VInt 736493)); ("name", (VString "Vasya"))]),
-     (None, None))
-    ----------------------------------
-    ((2, ["City"], [("name", (VString "Moscow"))]), (None, None))
-    ----------------------------------
-    ((1, ["City"], [("name", (VString "Saint Petersburg"))]), (None, None))
-    ----------------------------------
-    ((4, ["LIVES_IN"], []),
-     ((Some (3, ["User"], [("phone", (VInt 736493)); ("name", (VString "Vasya"))])),
-      (Some (1, ["City"], [("name", (VString "Saint Petersburg"))]))))
-    ----------------------------------
-    ((5, ["BORN_IN"], []),
-     ((Some (3, ["User"], [("phone", (VInt 736493)); ("name", (VString "Vasya"))])),
-      (Some (2, ["City"], [("name", (VString "Moscow"))]))))
-    ----------------------------------
-    |}]
-;;
-
-let%expect_test _ =
-  let _ =
-    let parsed =
-      Parser.parse_with
-        Parser.pcmdssep
-        {|
-        CREATE (pam :Person {name: "Pam", age: 40}),
-                (tom :Person :Student {name: "Tom", age: 15}),
-                (kate :Person {name: "Kate", age: 40});
-
-        MATCH (n {age: 40}) RETURN n;
-
-        MATCH (n: Student) RETURN n;
-        |}
-    in
-    let open Caml.Format in
-    match parsed with
-    | Error err -> printf "%s%!" err
-    | Ok commands ->
-      (match interpret_program commands with
-      | Error err -> printf "%a%!" pp_err err
-      | Ok (_, _) -> printf "")
-  in
-  [%expect
-    {|
-    Vertex created
-    Vertex created
-    Vertex created
-    ((8, ["Person"], [("age", (VInt 40)); ("name", (VString "Kate"))]),
-     (None, None))
-    ----------------------------------
-    ((6, ["Person"], [("age", (VInt 40)); ("name", (VString "Pam"))]),
-     (None, None))
-    ----------------------------------
-    ((7, ["Person"; "Student"], [("age", (VInt 15)); ("name", (VString "Tom"))]),
-     (None, None))
-    ----------------------------------
-    |}]
-;;
-
-let%expect_test _ =
-  let _ =
-    let parsed =
-      Parser.parse_with
-        Parser.pcmdssep
-        {|
-        CREATE (pam :Person {name: "Pam", age: 40}),
-                (tom :Person :Student {name: "Tom", age: 15}),
-                (ann :Person {name: "Ann", age: 25}),
-                (pam)-[:PARENT {role: "Mother"}]->(tom),
-                (ann)-[:PARENT {role: "Mother"}]->(jessica:Person{name:"Jessica", age: 5});
-
-        MATCH (tom {name: "Tom", age: 15}) 
-        CREATE (bob:Person {name: "Bob", age: 38})-[:PARENT {role: "Father"}]->(tom);
-
-        MATCH (p1 {name: "Pam"}), (p2 {name: "Ann"}) CREATE (p1)-[:SISTER {role: "Elder sister"}]->(p2);
-
-        MATCH ()-[r:SISTER]->() RETURN r;
-
-        MATCH (tom {name: "Tom", age: 15}) DETACH DELETE tom;
-
-        MATCH (n) RETURN n;
-        |}
-    in
-    let open Caml.Format in
-    match parsed with
-    | Error err -> printf "%s%!" err
-    | Ok commands ->
-      (match interpret_program commands with
-      | Error err -> printf "%a%!" pp_err err
-      | Ok (_, _) -> printf "")
-  in
-  [%expect
-    {|
-    Vertex created
-    Vertex created
-    Vertex created
-    Edge created
-    Vertex created
-    Edge created
-    Vertex created
-    Edge created
-    Edge created
-    ((17, ["SISTER"], [("role", (VString "Elder sister"))]),
-     ((Some (9, ["Person"], [("age", (VInt 40)); ("name", (VString "Pam"))])),
-      (Some (11, ["Person"], [("age", (VInt 25)); ("name", (VString "Ann"))]))))
-    ----------------------------------
-    ((15, ["Person"], [("age", (VInt 38)); ("name", (VString "Bob"))]),
-     (None, None))
-    ----------------------------------
-    ((13, ["Person"], [("age", (VInt 5)); ("name", (VString "Jessica"))]),
-     (None, None))
-    ----------------------------------
-    ((11, ["Person"], [("age", (VInt 25)); ("name", (VString "Ann"))]),
-     (None, None))
-    ----------------------------------
-    ((9, ["Person"], [("age", (VInt 40)); ("name", (VString "Pam"))]),
-     (None, None))
-    ----------------------------------
-    |}]
 ;;

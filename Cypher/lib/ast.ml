@@ -38,7 +38,7 @@ type cmdmatch =
 [@@deriving show { with_path = false }]
 
 type command =
-  | CmdCreate of elm list (* CREATE elm *)
+  | CmdCreate of elm list (* CREATE elms *)
   | CmdMatch of elm list * cmdmatch list (* MATCH elms cmdmatch *)
 [@@deriving show { with_path = false }]
 
