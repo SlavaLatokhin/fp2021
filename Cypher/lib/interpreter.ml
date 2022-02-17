@@ -332,13 +332,12 @@ let interp_cmd_vars vars graph env cmd =
               match oneenv with
               | evar, eelm ->
                 (match eelm with
-                | (id, labels, props), (src, dst) ->
-                  if var = evar && not (Array.exists (fun aid -> id = aid) processed)
-                  then (
-                    processed.(!i) <- id;
-                    i := !i + 1;
-                    exe_cmd_vars eelm id labels props src dst graph env cmd)
-                  else Result.ok (graph, env)))
+                | (id, labels, props), (src, dst)
+                  when var = evar && not (Array.exists (fun aid -> id = aid) processed) ->
+                  processed.(!i) <- id;
+                  i := !i + 1;
+                  exe_cmd_vars eelm id labels props src dst graph env cmd
+                | _ -> Result.ok (graph, env)))
             (Result.ok (graph, env))
             env)
         (Result.ok (graph, env))
