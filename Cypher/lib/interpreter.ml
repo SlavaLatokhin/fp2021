@@ -157,8 +157,7 @@ let save_edge var label vproperties graph env n1 n2 =
        , edge ))
 ;;
 
-let add_edge var graph env n1 n2 properties label =
-  match properties with
+let add_edge var graph env n1 n2 label = function
   | Some props ->
     let* vproperties = get_props props in
     save_edge var label vproperties graph env n1 n2
@@ -278,7 +277,7 @@ let interp_crt elms env =
           | Some label ->
             let* graph, env, n1 = peek_or_add_node env graph n1 in
             let* graph, env, n2 = peek_or_add_node env graph n2 in
-            (match add_edge var graph env n1 n2 properties label with
+            (match add_edge var graph env n1 n2 label properties with
             | Ok (graph, env, _) -> Result.ok (graph, env)
             | Error err -> Result.error err)
           | None ->
