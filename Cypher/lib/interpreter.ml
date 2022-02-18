@@ -4,12 +4,13 @@ open Graph
 type value =
   | VString of string
   | VInt of int
+  | VBool of bool
 [@@deriving show { with_path = false }]
 
-let pp_value fmt = function
+(** let pp_value fmt = function
   | VString s -> Format.fprintf fmt "(VString %S)" s
   | VInt n -> Format.fprintf fmt "(VInt %d)" n
-;;
+;; *)
 
 type vproperty = string * value [@@deriving show { with_path = false }]
 type vproperties = vproperty list [@@deriving show { with_path = false }]
@@ -17,7 +18,7 @@ type vproperties = vproperty list [@@deriving show { with_path = false }]
 type elm_data_src_dst = int * string list * vproperties
 [@@deriving show { with_path = false }]
 
-(* 
+(** 
 Uses the same type for vertices and edges to make 
 it easier to store data in a single environment.
 
@@ -26,6 +27,11 @@ Edge: (id. labels, vproperties), (src, dst)
 *)
 type elm_data =
   (int * string list * vproperties) * (elm_data_src_dst option * elm_data_src_dst option)
+[@@deriving show { with_path = false }]
+
+type abstvalue =
+  | VValue of value
+  | VElm of elm_data
 [@@deriving show { with_path = false }]
 
 let id = ref 0
@@ -64,9 +70,10 @@ type err =
   | DivByZero
   | NotBound of string
   | NoLabelEdge of string
+  | IncorrectProps
 [@@deriving show { with_path = false }]
 
-(* 
+(** 
 This type is needed to define commands that 
 look for the necessary elements in the environment. 
 Helps for code reuse.
@@ -76,26 +83,97 @@ type cmdvars =
   | Return
 [@@deriving show { with_path = false }]
 
-let rec interpret_expr = function
-  | EConst (CString s) -> Result.ok (VString s)
-  | EConst (CInt n) -> Result.ok (VInt n)
-  | EBinop (op, n, m) ->
-    let* n = interpret_expr n in
-    let* m = interpret_expr m in
-    (match op, n, m with
-    | Plus, VInt n, VInt m -> Result.ok (VInt (n + m))
-    | Minus, VInt n, VInt m -> Result.ok (VInt (n - m))
-    | Star, VInt n, VInt m -> Result.ok (VInt (n * m))
-    | Slash, VInt n, VInt m -> Result.ok (VInt (n / m))
-    | _ -> Result.error IncorrectType)
+let find_valueofelm_env varelm varfield env =
+  match List.mem_assoc varelm env with
+  | true ->
+    List.fold_left
+      (fun acc oneenv ->
+        let* listabstvalue = acc in
+        match oneenv with
+        | evar, eelm ->
+          (match eelm with
+          | (_, _, props), (_, _) when varelm = evar ->
+            (match List.assoc_opt varfield props with
+            | Some field -> Result.ok (VValue field :: listabstvalue)
+            | None -> Result.ok (VValue (VString "null") :: listabstvalue))
+          | _ -> Result.ok listabstvalue))
+      (Result.ok [])
+      env
+  | false -> Result.error (NotBound "Undefined variable or nothing was found.")
 ;;
 
-let get_props props =
+let find_elm_env varelm env =
+  match List.mem_assoc varelm env with
+  | true ->
+    List.fold_left
+      (fun acc oneenv ->
+        let* listabstvalue = acc in
+        match oneenv with
+        | evar, eelm when varelm = evar -> Result.ok (VElm eelm :: listabstvalue)
+        | _ -> Result.ok listabstvalue)
+      (Result.ok [])
+      env
+  | false -> Result.error (NotBound "Undefined variable or nothing was found.")
+;;
+
+let rec interpret_expr env expr =
+  match expr with
+  | EConst (CString s) -> Result.ok [ VValue (VString s) ]
+  | EConst (CInt n) -> Result.ok [ VValue (VInt n) ]
+  | EGetProp (elm, field) -> find_valueofelm_env elm field env
+  | EGetElm elm -> find_elm_env elm env
+  | EBinop (op, n, m) ->
+    let* n = interpret_expr env n in
+    let* m = interpret_expr env m in
+    List.fold_left
+      (fun acc n ->
+        let* listabstvalue = acc in
+        List.fold_left
+          (fun acc m ->
+            let* listabstvalue = acc in
+            match n, m with
+            | VValue n, VValue m ->
+              (match op, n, m with
+              | Plus, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VInt (n + m)) ])
+              | Minus, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VInt (n - m)) ])
+              | Star, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VInt (n * m)) ])
+              | Slash, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VInt (n / m)) ])
+              | NotEqual, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VBool (n <> m)) ])
+              | Less, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VBool (n < m)) ])
+              | Greater, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VBool (n > m)) ])
+              | LessEq, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VBool (n <= m)) ])
+              | GreEq, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VBool (n >= m)) ])
+              | Equal, VInt n, VInt m ->
+                Result.ok (listabstvalue @ [ VValue (VBool (n = m)) ])
+              | _ -> Result.error IncorrectType)
+            | _ -> Result.error IncorrectType)
+          (Result.ok listabstvalue)
+          m)
+      (Result.ok [])
+      n
+;;
+
+let get_props env props =
   List.fold_left
     (fun acc (name, expr) ->
-      let* value = interpret_expr expr in
-      let* acc = acc in
-      Result.ok ((name, value) :: acc))
+      let* abstvaluelist = interpret_expr env expr in
+      match abstvaluelist with
+      | abstvalue :: _ ->
+        (match abstvalue with
+        | VValue value ->
+          let* acc = acc in
+          Result.ok ((name, value) :: acc)
+        | VElm _ -> Result.error IncorrectProps)
+      | _ -> Result.error IncorrectProps)
     (Result.ok [])
     props
 ;;
@@ -114,7 +192,7 @@ let save_node var label vproperties graph env =
 
 let add_node var label graph env = function
   | Some props ->
-    let* vproperties = get_props props in
+    let* vproperties = get_props env props in
     (match label with
     | Some label -> save_node var label vproperties graph env
     | None -> save_node var [] vproperties graph env)
@@ -159,7 +237,7 @@ let save_edge var label vproperties graph env n1 n2 =
 
 let add_edge var graph env n1 n2 label = function
   | Some props ->
-    let* vproperties = get_props props in
+    let* vproperties = get_props env props in
     save_edge var label vproperties graph env n1 n2
   | None -> save_edge var label [] graph env n1 n2
 ;;
@@ -177,7 +255,7 @@ let send_check_datas dprops props labels var elm env fdatas = function
   | Some dlabels ->
     (match dprops with
     | Some dprops ->
-      let* dprops = get_props dprops in
+      let* dprops = get_props env dprops in
       if List.length dlabels <= List.length labels
       then
         if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
@@ -188,12 +266,12 @@ let send_check_datas dprops props labels var elm env fdatas = function
   | None ->
     (match dprops with
     | Some dprops ->
-      let* dprops = get_props dprops in
+      let* dprops = get_props env dprops in
       check_data dprops props var elm env fdatas
     | None -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas))
 ;;
 
-(* 
+(** 
 The function finds all edges between two nodes, 
 iterates one by one and sends it for comparison 
 with user-specified data. 
@@ -207,7 +285,7 @@ let iter_fedges graph env fnode1 fnode2 stbledges elm1 elm2 e =
         (match fedata with
         | (_, labels, props), (_, _) ->
           let* env, stbledges = acc in
-          let stbledges_len = ref (List.length stbledges) in
+          let stbledges_len = List.length stbledges in
           let* _, stbledges =
             send_check_datas
               dprops
@@ -219,7 +297,7 @@ let iter_fedges graph env fnode1 fnode2 stbledges elm1 elm2 e =
               stbledges
               (Some (Option.to_list dlabels))
           in
-          if List.length stbledges > !stbledges_len
+          if List.length stbledges > stbledges_len
           then
             Result.ok
               ( fnode1 :: (Option.value var ~default:"", fedata) :: fnode2 :: env
@@ -346,6 +424,45 @@ let interp_cmd_vars vars graph env cmd =
   else Result.error (NotBound "Undefined variable or nothing was found.")
 ;;
 
+let interp_ret exprs graph env =
+  let* listret =
+    List.fold_left
+      (fun acc expr ->
+        let* listret = acc in
+        let* abstvaluelist = interpret_expr env expr in
+        Result.ok (listret @ abstvaluelist))
+      (Result.ok [])
+      exprs
+  in
+  List.fold_left
+    (fun acc elmret ->
+      let* graph, env = acc in
+      match elmret with
+      | VValue value ->
+        Format.fprintf Format.std_formatter "%a\n%!" pp_value value;
+        Result.ok (graph, env)
+      | VElm elm ->
+        (match elm with
+        | (id, labels, props), (src, dst) ->
+          (match src, dst with
+          | Some _, Some _ ->
+            Format.fprintf
+              Format.std_formatter
+              "Edge: %a\n----------------------------------\n%!"
+              pp_elm_data
+              elm;
+            Result.ok (graph, env)
+          | _, _ ->
+            Format.fprintf
+              Format.std_formatter
+              "Node: %a\n----------------------------------\n%!"
+              pp_elm_data_src_dst
+              (id, labels, props);
+            Result.ok (graph, env))))
+    (Result.ok (graph, env))
+    listret
+;;
+
 let interp_match elms env commands =
   let* env =
     List.fold_left
@@ -371,7 +488,7 @@ let interp_match elms env commands =
       let* graph, env = acc in
       match cmd with
       | CMatchCrt elms -> interp_crt elms (graph, env)
-      | CMatchRet vars -> interp_cmd_vars vars graph env Return
+      | CMatchRet exprs -> interp_ret exprs graph env
       | CMatchDelete vars -> interp_cmd_vars vars graph env Delete)
     (Result.ok env)
     commands
