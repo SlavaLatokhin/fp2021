@@ -102,6 +102,14 @@ let pexpr =
              ; char '=' *> return (fun e1 e2 -> EBinop (Equal, e1, e2))
              ])
       in
+      let term =
+        chainl1
+          term
+          (choice
+             [ string_ci "AND" *> return (fun e1 e2 -> EBinop (And, e1, e2))
+             ; string_ci "OR" *> return (fun e1 e2 -> EBinop (Or, e1, e2))
+             ])
+      in
       term)
 ;;
 
@@ -175,29 +183,16 @@ let pmatchdelete =
 ;;
 
 let pcmd = choice [ pmatchret; pmatchcreate; pmatchdelete ]
-let pcmdsmatch = lift2 (fun elm cmdmatch -> CmdMatch (elm, cmdmatch)) pelms (many1 pcmd)
+let pwhere = pspacesstring "WHERE" *> pexpr >>| fun expr -> CMatchWhere expr
+
+let pcmdsmatch =
+  lift3
+    (fun elm cmdwhere cmdmatch -> CmdMatch (elm, cmdwhere, cmdmatch))
+    pelms
+    (option None (pwhere >>| fun cmd -> Some cmd))
+    (many1 pcmd)
+;;
+
 let pmatch = pspacesstring "MATCH" *> pcmdsmatch
 let pcmds = choice [ pcreate; pmatch ] <* pspaceschar ';'
 let pcmdssep = many pcmds
-
-(* let%expect_test _ =
-  let _ =
-    let parsed =
-      parse_with
-        pcmdssep
-        {|
-        CREATE (:City{name:"Saint Petersburg", age:  5+2 <>var.age    });
-        CREATE (:City{name:"Moscow"});
-        MATCH (c {name: "Moscow"}) DETACH DELETE c;
-        MATCH (c {name: "Moscow"}) RETURN a, a.age >10 ;
-        |}
-    in
-    let open Caml.Format in
-    match parsed with
-    | Error err -> printf "%s%!" err
-    | Ok commands -> printf "%a%!" pp_program commands
-  in
-  [%expect {|
-    
-     |}]
-;; *)

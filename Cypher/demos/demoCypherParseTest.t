@@ -19,6 +19,7 @@
             (NodeData ((Some "c2"), (Some ["City"]),
                (Some [("name", (EConst (CString "Moscow")))]))))
          ],
+       None,
        [(CMatchCrt
            [(Edge (
                (NodeData ((Some "u"), (Some ["User"]),
@@ -39,7 +40,7 @@
             (EdgeData ((Some "r"), None, None)), (NodeData (None, None, None))
             ))
          ],
-       [(CMatchRet ["n"; "r"])]))
+       None, [(CMatchRet [(EGetElm "n"); (EGetElm "r")])]))
     ]
   $ ./demoCypherParse.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
@@ -68,9 +69,9 @@
        [(Node
            (NodeData ((Some "n"), None, (Some [("age", (EConst (CInt 40)))]))))
          ],
-       [(CMatchRet ["n"])]));
+       None, [(CMatchRet [(EGetElm "n")])]));
     (CmdMatch ([(Node (NodeData ((Some "n"), (Some ["Student"]), None)))],
-       [(CMatchRet ["n"])]))
+       None, [(CMatchRet [(EGetElm "n")])]))
     ]
   $ ./demoCypherParse.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
@@ -120,6 +121,7 @@
                       ("age", (EConst (CInt 15)))])
               )))
          ],
+       None,
        [(CMatchCrt
            [(Edge (
                (NodeData ((Some "bob"), (Some ["Person"]),
@@ -140,6 +142,7 @@
             (NodeData ((Some "p2"), None,
                (Some [("name", (EConst (CString "Ann")))]))))
          ],
+       None,
        [(CMatchCrt
            [(Edge ((NodeData ((Some "p1"), None, None)),
                (EdgeData (None, (Some "SISTER"),
@@ -153,7 +156,7 @@
            (EdgeData ((Some "r"), (Some "SISTER"), None)),
            (NodeData (None, None, None))))
          ],
-       [(CMatchRet ["r"])]));
+       None, [(CMatchRet [(EGetElm "r")])]));
     (CmdMatch (
        [(Node
            (NodeData ((Some "tom"), None,
@@ -161,7 +164,7 @@
                       ("age", (EConst (CInt 15)))])
               )))
          ],
-       [(CMatchDelete ["tom"])]));
-    (CmdMatch ([(Node (NodeData ((Some "n"), None, None)))],
-       [(CMatchRet ["n"])]))
+       None, [(CMatchDelete ["tom"])]));
+    (CmdMatch ([(Node (NodeData ((Some "n"), None, None)))], None,
+       [(CMatchRet [(EGetElm "n")])]))
     ]

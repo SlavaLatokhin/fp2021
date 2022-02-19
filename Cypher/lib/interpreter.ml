@@ -30,11 +30,16 @@ type elm_data =
 [@@deriving show { with_path = false }]
 
 type abstvalue =
-  | VValue of value
-  | VElm of elm_data
+  | AValue of value
+  | AElm of elm_data
 [@@deriving show { with_path = false }]
 
-let id = ref 0
+let gen_sum =
+  let id = ref 0 in
+  fun () ->
+    id := !id + 1;
+    !id
+;;
 
 module ElmData = struct
   type t = elm_data
@@ -94,8 +99,8 @@ let find_valueofelm_env varelm varfield env =
           (match eelm with
           | (_, _, props), (_, _) when varelm = evar ->
             (match List.assoc_opt varfield props with
-            | Some field -> Result.ok (VValue field :: listabstvalue)
-            | None -> Result.ok (VValue (VString "null") :: listabstvalue))
+            | Some field -> Result.ok (AValue field :: listabstvalue)
+            | None -> Result.ok (AValue (VString "null") :: listabstvalue))
           | _ -> Result.ok listabstvalue))
       (Result.ok [])
       env
@@ -109,7 +114,7 @@ let find_elm_env varelm env =
       (fun acc oneenv ->
         let* listabstvalue = acc in
         match oneenv with
-        | evar, eelm when varelm = evar -> Result.ok (VElm eelm :: listabstvalue)
+        | evar, eelm when varelm = evar -> Result.ok (AElm eelm :: listabstvalue)
         | _ -> Result.ok listabstvalue)
       (Result.ok [])
       env
@@ -118,8 +123,8 @@ let find_elm_env varelm env =
 
 let rec interpret_expr env expr =
   match expr with
-  | EConst (CString s) -> Result.ok [ VValue (VString s) ]
-  | EConst (CInt n) -> Result.ok [ VValue (VInt n) ]
+  | EConst (CString s) -> Result.ok [ AValue (VString s) ]
+  | EConst (CInt n) -> Result.ok [ AValue (VInt n) ]
   | EGetProp (elm, field) -> find_valueofelm_env elm field env
   | EGetElm elm -> find_elm_env elm env
   | EBinop (op, n, m) ->
@@ -132,28 +137,32 @@ let rec interpret_expr env expr =
           (fun acc m ->
             let* listabstvalue = acc in
             match n, m with
-            | VValue n, VValue m ->
+            | AValue n, AValue m ->
               (match op, n, m with
               | Plus, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VInt (n + m)) ])
+                Result.ok (listabstvalue @ [ AValue (VInt (n + m)) ])
               | Minus, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VInt (n - m)) ])
+                Result.ok (listabstvalue @ [ AValue (VInt (n - m)) ])
               | Star, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VInt (n * m)) ])
+                Result.ok (listabstvalue @ [ AValue (VInt (n * m)) ])
               | Slash, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VInt (n / m)) ])
+                Result.ok (listabstvalue @ [ AValue (VInt (n / m)) ])
               | NotEqual, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VBool (n <> m)) ])
+                Result.ok (listabstvalue @ [ AValue (VBool (n <> m)) ])
               | Less, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VBool (n < m)) ])
+                Result.ok (listabstvalue @ [ AValue (VBool (n < m)) ])
               | Greater, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VBool (n > m)) ])
+                Result.ok (listabstvalue @ [ AValue (VBool (n > m)) ])
               | LessEq, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VBool (n <= m)) ])
+                Result.ok (listabstvalue @ [ AValue (VBool (n <= m)) ])
               | GreEq, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VBool (n >= m)) ])
+                Result.ok (listabstvalue @ [ AValue (VBool (n >= m)) ])
               | Equal, VInt n, VInt m ->
-                Result.ok (listabstvalue @ [ VValue (VBool (n = m)) ])
+                Result.ok (listabstvalue @ [ AValue (VBool (n = m)) ])
+              | And, VBool n, VBool m ->
+                Result.ok (listabstvalue @ [ AValue (VBool (n && m)) ])
+              | Or, VBool n, VBool m ->
+                Result.ok (listabstvalue @ [ AValue (VBool (n || m)) ])
               | _ -> Result.error IncorrectType)
             | _ -> Result.error IncorrectType)
           (Result.ok listabstvalue)
@@ -169,18 +178,17 @@ let get_props env props =
       match abstvaluelist with
       | abstvalue :: _ ->
         (match abstvalue with
-        | VValue value ->
+        | AValue value ->
           let* acc = acc in
           Result.ok ((name, value) :: acc)
-        | VElm _ -> Result.error IncorrectProps)
+        | AElm _ -> Result.error IncorrectProps)
       | _ -> Result.error IncorrectProps)
     (Result.ok [])
     props
 ;;
 
 let save_node var label vproperties graph env =
-  id := !id + 1;
-  let node = (!id, label, vproperties), (None, None) in
+  let node = (gen_sum (), label, vproperties), (None, None) in
   Result.ok
     (Format.fprintf Format.std_formatter "Vertex created\n%!";
      ( Graph.add_vertex graph node
@@ -222,10 +230,9 @@ let peek_or_add_node env graph = function
 ;;
 
 let save_edge var label vproperties graph env n1 n2 =
-  id := !id + 1;
   match n1, n2 with
   | (elm1, (_, _)), (elm2, (_, _)) ->
-    let edge = (!id, [ label ], vproperties), (Some elm1, Some elm2) in
+    let edge = (gen_sum (), [ label ], vproperties), (Some elm1, Some elm2) in
     Result.ok
       (Format.fprintf Format.std_formatter "Edge created\n%!";
        ( Graph.add_edge_e graph (n1, edge, n2)
@@ -251,24 +258,31 @@ let check_data ddatas datas var elm env fdatas =
   else Result.ok (env, fdatas)
 ;;
 
-let send_check_datas dprops props labels var elm env fdatas = function
-  | Some dlabels ->
-    (match dprops with
-    | Some dprops ->
-      let* dprops = get_props env dprops in
-      if List.length dlabels <= List.length labels
-      then
-        if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
-        then check_data dprops props var elm env fdatas
-        else Result.ok (env, fdatas)
-      else Result.ok (env, fdatas)
-    | None -> check_data dlabels labels var elm env fdatas)
+let send_check_datas cmdwithmatch dprops props labels var elm env fdatas dlabels =
+  match cmdwithmatch with
   | None ->
-    (match dprops with
-    | Some dprops ->
-      let* dprops = get_props env dprops in
-      check_data dprops props var elm env fdatas
-    | None -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas))
+    (match dlabels with
+    | Some dlabels ->
+      (match dprops with
+      | Some dprops ->
+        let* dprops = get_props env dprops in
+        if List.length dlabels <= List.length labels
+        then
+          if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
+          then check_data dprops props var elm env fdatas
+          else Result.ok (env, fdatas)
+        else Result.ok (env, fdatas)
+      | None -> check_data dlabels labels var elm env fdatas)
+    | None ->
+      (match dprops with
+      | Some dprops ->
+        let* dprops = get_props env dprops in
+        check_data dprops props var elm env fdatas
+      | None -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas)))
+  (* TO DO *)
+  | Some cmdwithmatch ->
+    (match cmdwithmatch with
+    | CMatchWhere expr -> Result.ok (env, fdatas))
 ;;
 
 (** 
@@ -276,7 +290,7 @@ The function finds all edges between two nodes,
 iterates one by one and sends it for comparison 
 with user-specified data. 
 *)
-let iter_fedges graph env fnode1 fnode2 stbledges elm1 elm2 e =
+let iter_fedges cmdwithmatch graph env fnode1 fnode2 stbledges elm1 elm2 e =
   let fedges = Graph.find_all_edges graph elm1 elm2 in
   List.fold_left
     (fun acc fedge ->
@@ -288,6 +302,7 @@ let iter_fedges graph env fnode1 fnode2 stbledges elm1 elm2 e =
           let stbledges_len = List.length stbledges in
           let* _, stbledges =
             send_check_datas
+              cmdwithmatch
               dprops
               props
               labels
@@ -297,37 +312,37 @@ let iter_fedges graph env fnode1 fnode2 stbledges elm1 elm2 e =
               stbledges
               (Some (Option.to_list dlabels))
           in
-          if List.length stbledges > stbledges_len
-          then
+          (match List.length stbledges > stbledges_len with
+          | true ->
             Result.ok
               ( fnode1 :: (Option.value var ~default:"", fedata) :: fnode2 :: env
               , stbledges )
-          else Result.ok (env, stbledges)))
+          | false -> Result.ok (env, stbledges))))
     (Result.Ok (env, stbledges))
     fedges
 ;;
 
-let find_nodes var dlabels dprops graph env =
+let find_nodes cmdwithmatch var dlabels dprops graph env =
   Graph.fold_vertex
     (fun v acc ->
       match v with
       | (_, labels, props), (_, _) ->
         let* env, fnodes = acc in
-        send_check_datas dprops props labels var v env fnodes dlabels)
+        send_check_datas cmdwithmatch dprops props labels var v env fnodes dlabels)
     graph
     (Result.ok (env, []))
 ;;
 
-let find_edges n1 e n2 graph env =
+let find_edges cmdwithmatch n1 e n2 graph env =
   let* _, fnodes1 =
     match n1 with
     | NodeData (var, label, properties) ->
-      find_nodes (Option.value var ~default:"") label properties graph []
+      find_nodes cmdwithmatch (Option.value var ~default:"") label properties graph []
   in
   let* _, fnodes2 =
     match n2 with
     | NodeData (var, label, properties) ->
-      find_nodes (Option.value var ~default:"") label properties graph []
+      find_nodes cmdwithmatch (Option.value var ~default:"") label properties graph []
   in
   List.fold_left
     (fun acc fnode1 ->
@@ -337,7 +352,7 @@ let find_edges n1 e n2 graph env =
           let* env, stbledges = acc in
           match fnode1, fnode2 with
           | (_, elm1), (_, elm2) ->
-            iter_fedges graph env fnode1 fnode2 stbledges elm1 elm2 e)
+            iter_fedges cmdwithmatch graph env fnode1 fnode2 stbledges elm1 elm2 e)
         (Result.Ok (env, stbledges))
         fnodes2)
     (Result.Ok (env, []))
@@ -438,10 +453,10 @@ let interp_ret exprs graph env =
     (fun acc elmret ->
       let* graph, env = acc in
       match elmret with
-      | VValue value ->
+      | AValue value ->
         Format.fprintf Format.std_formatter "%a\n%!" pp_value value;
         Result.ok (graph, env)
-      | VElm elm ->
+      | AElm elm ->
         (match elm with
         | (id, labels, props), (src, dst) ->
           (match src, dst with
@@ -463,7 +478,7 @@ let interp_ret exprs graph env =
     listret
 ;;
 
-let interp_match elms env commands =
+let interp_match elms env commands cmdwithmatch =
   let* env =
     List.fold_left
       (fun acc elm ->
@@ -474,11 +489,11 @@ let interp_match elms env commands =
           | NodeData (var, label, properties) ->
             (match var with
             | Some var ->
-              let* env, _ = find_nodes var label properties graph env in
+              let* env, _ = find_nodes cmdwithmatch var label properties graph env in
               Result.ok (graph, env)
             | None -> Result.ok (graph, env)))
         | Edge (n1, e, n2) ->
-          let* env, _ = find_edges n1 e n2 graph env in
+          let* env, _ = find_edges cmdwithmatch n1 e n2 graph env in
           Result.ok (graph, env))
       (Result.ok env)
       elms
@@ -496,7 +511,7 @@ let interp_match elms env commands =
 
 let interpret_command env = function
   | CmdCreate elms -> interp_crt elms env
-  | CmdMatch (elms, commands) -> interp_match elms env commands
+  | CmdMatch (elms, cmdwithmatch, commands) -> interp_match elms env commands cmdwithmatch
 ;;
 
 let interpret_program commands =

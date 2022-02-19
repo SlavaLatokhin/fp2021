@@ -14,6 +14,8 @@ type binop =
   | LessEq
   | GreEq
   | Equal
+  | And
+  | Or
 [@@deriving show { with_path = false }]
 
 type expr =
@@ -26,11 +28,11 @@ type expr =
 (** {name:"Daniel"} *)
 type property = string * expr [@@deriving show { with_path = false }]
 
-(** [edge1 : PARENT { role: "Father" }] *)
+(** [edge : PARENT { role: "Father" }] *)
 type edgedata = EdgeData of string option * string option * property list option
 [@@deriving show { with_path = false }]
 
-(** (node1 : PERSON { name: "Daniel" }) *)
+(** (node : PERSON { name: "Daniel" }) *)
 type nodedata = NodeData of string option * string list option * property list option
 [@@deriving show { with_path = false }]
 
@@ -45,9 +47,13 @@ type cmdmatch =
   | CMatchCrt of elm list (** CREATE elms *)
 [@@deriving show { with_path = false }]
 
+type cmdwithmatch =
+  | CMatchWhere of expr (** WHERE node.name = "Daniel" AND node.age < 20 *)
+[@@deriving show { with_path = false }]
+
 type command =
   | CmdCreate of elm list (** CREATE elms *)
-  | CmdMatch of elm list * cmdmatch list (** MATCH elms cmdmatch *)
+  | CmdMatch of elm list * cmdwithmatch option * cmdmatch list (** MATCH elms cmdmatch *)
 [@@deriving show { with_path = false }]
 
 type program = command list [@@deriving show { with_path = false }]
