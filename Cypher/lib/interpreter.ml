@@ -176,8 +176,7 @@ let interpret_expr_where expr var props =
   | _ -> Result.error IncorrectWhere
 ;;
 
-let rec interpret_expr env expr =
-  match expr with
+let rec interpret_expr env = function
   | EConst (CString s) -> Result.ok [ AValue (VString s) ]
   | EConst (CInt n) -> Result.ok [ AValue (VInt n) ]
   | EGetProp (elm, field) -> find_valueofelm_env elm field env
@@ -305,12 +304,12 @@ let add_edge var graph env n1 n2 label = function
 ;;
 
 let check_data ddatas datas var elm env fdatas =
-  if List.length ddatas <= List.length datas
-  then
-    if List.for_all (fun ddata -> List.mem ddata datas) ddatas
-    then Result.ok ((var, elm) :: env, (var, elm) :: fdatas)
-    else Result.ok (env, fdatas)
-  else Result.ok (env, fdatas)
+  match List.length ddatas <= List.length datas with
+  | true ->
+    (match List.for_all (fun ddata -> List.mem ddata datas) ddatas with
+    | true -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas)
+    | false -> Result.ok (env, fdatas))
+  | false -> Result.ok (env, fdatas)
 ;;
 
 let send_check_datas_without_where dprops env labels props var elm fdatas = function
@@ -318,12 +317,12 @@ let send_check_datas_without_where dprops env labels props var elm fdatas = func
     (match dprops with
     | Some dprops ->
       let* dprops = get_props env dprops in
-      if List.length dlabels <= List.length labels
-      then
-        if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
-        then check_data dprops props var elm env fdatas
-        else Result.ok (env, fdatas)
-      else Result.ok (env, fdatas)
+      (match List.length dlabels <= List.length labels with
+      | true ->
+        (match List.for_all (fun dlabel -> List.mem dlabel labels) dlabels with
+        | true -> check_data dprops props var elm env fdatas
+        | false -> Result.ok (env, fdatas))
+      | false -> Result.ok (env, fdatas))
     | None -> check_data dlabels labels var elm env fdatas)
   | None ->
     (match dprops with
@@ -338,35 +337,35 @@ let send_check_datas_with_where dprops env labels props var expr = function
     (match dprops with
     | Some dprops ->
       let* dprops = get_props env dprops in
-      if List.length dlabels <= List.length labels
-      then
-        if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
-        then
-          if List.length dprops <= List.length props
-          then
-            if List.for_all (fun dprop -> List.mem dprop props) dprops
-            then interpret_expr_where expr var props
-            else Result.ok false
-          else Result.ok false
-        else Result.ok false
-      else Result.ok false
+      (match List.length dlabels <= List.length labels with
+      | true ->
+        (match List.for_all (fun dlabel -> List.mem dlabel labels) dlabels with
+        | true ->
+          (match List.length dprops <= List.length props with
+          | true ->
+            (match List.for_all (fun dprop -> List.mem dprop props) dprops with
+            | true -> interpret_expr_where expr var props
+            | false -> Result.ok false)
+          | false -> Result.ok false)
+        | false -> Result.ok false)
+      | false -> Result.ok false)
     | None ->
-      if List.length dlabels <= List.length labels
-      then
-        if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
-        then interpret_expr_where expr var props
-        else Result.ok false
-      else Result.ok false)
+      (match List.length dlabels <= List.length labels with
+      | true ->
+        (match List.for_all (fun dlabel -> List.mem dlabel labels) dlabels with
+        | true -> interpret_expr_where expr var props
+        | false -> Result.ok false)
+      | false -> Result.ok false))
   | None ->
     (match dprops with
     | Some dprops ->
       let* dprops = get_props env dprops in
-      if List.length dprops <= List.length props
-      then
-        if List.for_all (fun dprop -> List.mem dprop props) dprops
-        then interpret_expr_where expr var props
-        else Result.ok false
-      else Result.ok false
+      (match List.length dprops <= List.length props with
+      | true ->
+        (match List.for_all (fun dprop -> List.mem dprop props) dprops with
+        | true -> interpret_expr_where expr var props
+        | false -> Result.ok false)
+      | false -> Result.ok false)
     | None -> interpret_expr_where expr var props)
 ;;
 
@@ -519,12 +518,10 @@ let exe_cmd_vars eelm src dst graph env =
 
 (** The function can be used for all commands followed by a list of elements.*)
 let interp_cmd_vars vars graph env =
-  if List.length vars <= List.length env
-  then
-    if List.for_all (fun var -> List.mem_assoc var env) vars
-    then (
-      let processed = Array.make (List.length env) 0 in
-      let i = ref 0 in
+  match List.length vars <= List.length env with
+  | true ->
+    (match List.for_all (fun var -> List.mem_assoc var env) vars with
+    | true ->
       List.fold_left
         (fun acc var ->
           let* graph, env = acc in
@@ -534,18 +531,15 @@ let interp_cmd_vars vars graph env =
               match oneenv with
               | evar, eelm ->
                 (match eelm with
-                | (id, _, _), (src, dst)
-                  when var = evar && not (Array.exists (fun aid -> id = aid) processed) ->
-                  processed.(!i) <- id;
-                  i := !i + 1;
+                | (_, _, _), (src, dst) when var = evar ->
                   exe_cmd_vars eelm src dst graph env
                 | _ -> Result.ok (graph, env)))
             (Result.ok (graph, env))
             env)
         (Result.ok (graph, env))
-        vars)
-    else Result.error (NotBound "Undefined variable or nothing was found.")
-  else Result.error (NotBound "Undefined variable or nothing was found.")
+        vars
+    | false -> Result.error (NotBound "Undefined variable or nothing was found."))
+  | false -> Result.error (NotBound "Undefined variable or nothing was found.")
 ;;
 
 let interp_ret exprs graph env =
