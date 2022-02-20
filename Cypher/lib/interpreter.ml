@@ -16,6 +16,7 @@ type elm_data_src_dst = int * string list * vproperties
 (** 
 Uses the same type for vertices and edges to make 
 it easier to store data in a single environment.
+
 Node: (id, labels, vproperties), (None, None) 
 Edge: (id. labels, vproperties), (src, dst)
 *)
@@ -74,16 +75,6 @@ type err =
   | UnstblElm
   | ElmNotValid
   | IncorrectWhere
-[@@deriving show { with_path = false }]
-
-(** 
-This type is needed to define commands that 
-look for the necessary elements in the environment. 
-Helps for code reuse.
-*)
-type cmdvars =
-  | Delete
-  | Return
 [@@deriving show { with_path = false }]
 
 type elms =
@@ -519,32 +510,15 @@ let interp_crt elms env =
     elms
 ;;
 
-let exe_cmd_vars eelm id labels props src dst graph env cmd =
+let exe_cmd_vars eelm src dst graph env =
   match src, dst with
   | Some src, Some dst ->
-    (match cmd with
-    | Delete ->
-      Result.ok (Graph.remove_edge graph (src, (None, None)) (dst, (None, None)), env)
-    | Return ->
-      Format.fprintf
-        Format.std_formatter
-        "Edge: %a\n----------------------------------\n%!"
-        pp_elm_data
-        eelm;
-      Result.ok (graph, env))
-  | _, _ ->
-    (match cmd with
-    | Delete -> Result.ok (Graph.remove_vertex graph eelm, env)
-    | Return ->
-      Format.fprintf
-        Format.std_formatter
-        "Node: %a\n----------------------------------\n%!"
-        pp_elm_data_src_dst
-        (id, labels, props);
-      Result.ok (graph, env))
+    Result.ok (Graph.remove_edge graph (src, (None, None)) (dst, (None, None)), env)
+  | _, _ -> Result.ok (Graph.remove_vertex graph eelm, env)
 ;;
 
-let interp_cmd_vars vars graph env cmd =
+(** The function can be used for all commands followed by a list of elements.*)
+let interp_cmd_vars vars graph env =
   if List.length vars <= List.length env
   then
     if List.for_all (fun var -> List.mem_assoc var env) vars
@@ -560,11 +534,11 @@ let interp_cmd_vars vars graph env cmd =
               match oneenv with
               | evar, eelm ->
                 (match eelm with
-                | (id, labels, props), (src, dst)
+                | (id, _, _), (src, dst)
                   when var = evar && not (Array.exists (fun aid -> id = aid) processed) ->
                   processed.(!i) <- id;
                   i := !i + 1;
-                  exe_cmd_vars eelm id labels props src dst graph env cmd
+                  exe_cmd_vars eelm src dst graph env
                 | _ -> Result.ok (graph, env)))
             (Result.ok (graph, env))
             env)
@@ -641,7 +615,7 @@ let interp_match elms env commands cmdwithmatch =
       match cmd with
       | CMatchCrt elms -> interp_crt elms (graph, env)
       | CMatchRet exprs -> interp_ret exprs graph env
-      | CMatchDelete vars -> interp_cmd_vars vars graph env Delete)
+      | CMatchDelete vars -> interp_cmd_vars vars graph env)
     (Result.ok env)
     commands
 ;;
