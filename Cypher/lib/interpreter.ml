@@ -7,11 +7,6 @@ type value =
   | VBool of bool
 [@@deriving show { with_path = false }]
 
-(** let pp_value fmt = function
-  | VString s -> Format.fprintf fmt "(VString %S)" s
-  | VInt n -> Format.fprintf fmt "(VInt %d)" n
-;; *)
-
 type vproperty = string * value [@@deriving show { with_path = false }]
 type vproperties = vproperty list [@@deriving show { with_path = false }]
 
@@ -21,7 +16,6 @@ type elm_data_src_dst = int * string list * vproperties
 (** 
 Uses the same type for vertices and edges to make 
 it easier to store data in a single environment.
-
 Node: (id, labels, vproperties), (None, None) 
 Edge: (id. labels, vproperties), (src, dst)
 *)
@@ -76,6 +70,10 @@ type err =
   | NotBound of string
   | NoLabelEdge of string
   | IncorrectProps
+  | NotExistField of string
+  | UnstblElm
+  | ElmNotValid
+  | IncorrectWhere
 [@@deriving show { with_path = false }]
 
 (** 
@@ -87,6 +85,10 @@ type cmdvars =
   | Delete
   | Return
 [@@deriving show { with_path = false }]
+
+type elms =
+  | ENode
+  | EEdge
 
 let find_valueofelm_env varelm varfield env =
   match List.mem_assoc varelm env with
@@ -119,6 +121,68 @@ let find_elm_env varelm env =
       (Result.ok [])
       env
   | false -> Result.error (NotBound "Undefined variable or nothing was found.")
+;;
+
+let check_var_props var props elm field =
+  match var = elm with
+  | true ->
+    (match List.assoc_opt field props with
+    | Some field -> Result.ok field
+    | None -> Result.error (NotExistField "This element does not have this property"))
+  | false -> Result.error UnstblElm
+;;
+
+let rec interpret_rec_expr_where expr var props =
+  match expr with
+  | EConst (CString s) -> Result.ok (VString s)
+  | EConst (CInt n) -> Result.ok (VInt n)
+  | EGetProp (elm, field) -> check_var_props var props elm field
+  | EGetElm _ -> Result.error ElmNotValid
+  | EBinop (op, n, m) ->
+    let* n = interpret_rec_expr_where n var props in
+    let* m = interpret_rec_expr_where m var props in
+    (match op, n, m with
+    | Plus, VInt n, VInt m -> Result.ok (VInt (n + m))
+    | Minus, VInt n, VInt m -> Result.ok (VInt (n - m))
+    | Star, VInt n, VInt m -> Result.ok (VInt (n * m))
+    | Slash, VInt n, VInt m -> Result.ok (VInt (n / m))
+    | NotEqual, _, _ -> Result.ok (VBool (n <> m))
+    | Less, _, _ -> Result.ok (VBool (n < m))
+    | Greater, _, _ -> Result.ok (VBool (n > m))
+    | LessEq, _, _ -> Result.ok (VBool (n <= m))
+    | GreEq, _, _ -> Result.ok (VBool (n >= m))
+    | Equal, _, _ -> Result.ok (VBool (n = m))
+    | And, VBool n, VBool m -> Result.ok (VBool (n && m))
+    | Or, VBool n, VBool m -> Result.ok (VBool (n || m))
+    | _ -> Result.error IncorrectType)
+;;
+
+(** 
+Initially, the interpreter checks for WHERE 
+that WHERE will return boolean. 
+*)
+let interpret_expr_where expr var props =
+  match expr with
+  | EBinop (op, n, m) ->
+    let* n = interpret_rec_expr_where n var props in
+    let* m = interpret_rec_expr_where m var props in
+    (match op with
+    | NotEqual -> Result.ok (n <> m)
+    | Less -> Result.ok (n < m)
+    | Greater -> Result.ok (n > m)
+    | LessEq -> Result.ok (n <= m)
+    | GreEq -> Result.ok (n >= m)
+    | Equal -> Result.ok (n = m)
+    | And ->
+      (match n, m with
+      | VBool n, VBool m -> Result.ok (n && m)
+      | _, _ -> Result.error IncorrectType)
+    | Or ->
+      (match n, m with
+      | VBool n, VBool m -> Result.ok (n || m)
+      | _, _ -> Result.error IncorrectType)
+    | _ -> Result.error IncorrectWhere)
+  | _ -> Result.error IncorrectWhere
 ;;
 
 let rec interpret_expr env expr =
@@ -258,31 +322,75 @@ let check_data ddatas datas var elm env fdatas =
   else Result.ok (env, fdatas)
 ;;
 
-let send_check_datas cmdwithmatch dprops props labels var elm env fdatas dlabels =
-  match cmdwithmatch with
-  | None ->
-    (match dlabels with
-    | Some dlabels ->
-      (match dprops with
-      | Some dprops ->
-        let* dprops = get_props env dprops in
-        if List.length dlabels <= List.length labels
-        then
-          if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
-          then check_data dprops props var elm env fdatas
-          else Result.ok (env, fdatas)
+let send_check_datas_without_where dprops env labels props var elm fdatas = function
+  | Some dlabels ->
+    (match dprops with
+    | Some dprops ->
+      let* dprops = get_props env dprops in
+      if List.length dlabels <= List.length labels
+      then
+        if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
+        then check_data dprops props var elm env fdatas
         else Result.ok (env, fdatas)
-      | None -> check_data dlabels labels var elm env fdatas)
+      else Result.ok (env, fdatas)
+    | None -> check_data dlabels labels var elm env fdatas)
+  | None ->
+    (match dprops with
+    | Some dprops ->
+      let* dprops = get_props env dprops in
+      check_data dprops props var elm env fdatas
+    | None -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas))
+;;
+
+let send_check_datas_with_where dprops env labels props var expr = function
+  | Some dlabels ->
+    (match dprops with
+    | Some dprops ->
+      let* dprops = get_props env dprops in
+      if List.length dlabels <= List.length labels
+      then
+        if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
+        then
+          if List.length dprops <= List.length props
+          then
+            if List.for_all (fun dprop -> List.mem dprop props) dprops
+            then interpret_expr_where expr var props
+            else Result.ok false
+          else Result.ok false
+        else Result.ok false
+      else Result.ok false
     | None ->
-      (match dprops with
-      | Some dprops ->
-        let* dprops = get_props env dprops in
-        check_data dprops props var elm env fdatas
-      | None -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas)))
-  (* TO DO *)
-  | Some cmdwithmatch ->
-    (match cmdwithmatch with
-    | CMatchWhere expr -> Result.ok (env, fdatas))
+      if List.length dlabels <= List.length labels
+      then
+        if List.for_all (fun dlabel -> List.mem dlabel labels) dlabels
+        then interpret_expr_where expr var props
+        else Result.ok false
+      else Result.ok false)
+  | None ->
+    (match dprops with
+    | Some dprops ->
+      let* dprops = get_props env dprops in
+      if List.length dprops <= List.length props
+      then
+        if List.for_all (fun dprop -> List.mem dprop props) dprops
+        then interpret_expr_where expr var props
+        else Result.ok false
+      else Result.ok false
+    | None -> interpret_expr_where expr var props)
+;;
+
+let send_check_datas dprops props labels var elm env fdatas dlabels typeofelm = function
+  | None -> send_check_datas_without_where dprops env labels props var elm fdatas dlabels
+  | Some (CMatchWhere expr) ->
+    let booln = send_check_datas_with_where dprops env labels props var expr dlabels in
+    (match booln with
+    | Ok true -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas)
+    | Ok false -> Result.ok (env, fdatas)
+    | Error UnstblElm ->
+      (match typeofelm with
+      | EEdge -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas)
+      | ENode -> Result.ok (env, fdatas))
+    | Error err -> Result.error err)
 ;;
 
 (** 
@@ -302,7 +410,6 @@ let iter_fedges cmdwithmatch graph env fnode1 fnode2 stbledges elm1 elm2 e =
           let stbledges_len = List.length stbledges in
           let* _, stbledges =
             send_check_datas
-              cmdwithmatch
               dprops
               props
               labels
@@ -310,7 +417,11 @@ let iter_fedges cmdwithmatch graph env fnode1 fnode2 stbledges elm1 elm2 e =
               fedata
               env
               stbledges
-              (Some (Option.to_list dlabels))
+              (match dlabels with
+              | None -> None
+              | Some dlabels -> Some [ dlabels ])
+              EEdge
+              cmdwithmatch
           in
           (match List.length stbledges > stbledges_len with
           | true ->
@@ -322,13 +433,23 @@ let iter_fedges cmdwithmatch graph env fnode1 fnode2 stbledges elm1 elm2 e =
     fedges
 ;;
 
-let find_nodes cmdwithmatch var dlabels dprops graph env =
+let find_nodes cmdwithmatch var dlabels dprops graph env typeofelm =
   Graph.fold_vertex
     (fun v acc ->
       match v with
       | (_, labels, props), (_, _) ->
         let* env, fnodes = acc in
-        send_check_datas cmdwithmatch dprops props labels var v env fnodes dlabels)
+        send_check_datas
+          dprops
+          props
+          labels
+          var
+          v
+          env
+          fnodes
+          dlabels
+          typeofelm
+          cmdwithmatch)
     graph
     (Result.ok (env, []))
 ;;
@@ -337,12 +458,26 @@ let find_edges cmdwithmatch n1 e n2 graph env =
   let* _, fnodes1 =
     match n1 with
     | NodeData (var, label, properties) ->
-      find_nodes cmdwithmatch (Option.value var ~default:"") label properties graph []
+      find_nodes
+        cmdwithmatch
+        (Option.value var ~default:"")
+        label
+        properties
+        graph
+        []
+        EEdge
   in
   let* _, fnodes2 =
     match n2 with
     | NodeData (var, label, properties) ->
-      find_nodes cmdwithmatch (Option.value var ~default:"") label properties graph []
+      find_nodes
+        cmdwithmatch
+        (Option.value var ~default:"")
+        label
+        properties
+        graph
+        []
+        EEdge
   in
   List.fold_left
     (fun acc fnode1 ->
@@ -489,7 +624,9 @@ let interp_match elms env commands cmdwithmatch =
           | NodeData (var, label, properties) ->
             (match var with
             | Some var ->
-              let* env, _ = find_nodes cmdwithmatch var label properties graph env in
+              let* env, _ =
+                find_nodes cmdwithmatch var label properties graph env ENode
+              in
               Result.ok (graph, env)
             | None -> Result.ok (graph, env)))
         | Edge (n1, e, n2) ->

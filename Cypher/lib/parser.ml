@@ -73,7 +73,9 @@ let pegetelmorprop = choice [ pgetprop; pgetelm ]
 
 let pexpr =
   fix (fun pexpr ->
-      let term = choice [ char '(' *> pexpr <* char ')'; peconst; pegetelmorprop ] in
+      let term =
+        choice [ pspaceschar '(' *> pexpr <* pspaceschar ')'; peconst; pegetelmorprop ]
+      in
       let term =
         chainl1
           term
@@ -95,20 +97,18 @@ let pexpr =
           term
           (choice
              [ string "<>" *> return (fun e1 e2 -> EBinop (NotEqual, e1, e2))
-             ; char '<' *> return (fun e1 e2 -> EBinop (Less, e1, e2))
-             ; char '>' *> return (fun e1 e2 -> EBinop (Greater, e1, e2))
              ; string "<=" *> return (fun e1 e2 -> EBinop (LessEq, e1, e2))
              ; string ">=" *> return (fun e1 e2 -> EBinop (GreEq, e1, e2))
+             ; char '<' *> return (fun e1 e2 -> EBinop (Less, e1, e2))
+             ; char '>' *> return (fun e1 e2 -> EBinop (Greater, e1, e2))
              ; char '=' *> return (fun e1 e2 -> EBinop (Equal, e1, e2))
              ])
       in
       let term =
-        chainl1
-          term
-          (choice
-             [ string_ci "AND" *> return (fun e1 e2 -> EBinop (And, e1, e2))
-             ; string_ci "OR" *> return (fun e1 e2 -> EBinop (Or, e1, e2))
-             ])
+        chainl1 term (string_ci "AND" *> return (fun e1 e2 -> EBinop (And, e1, e2)))
+      in
+      let term =
+        chainl1 term (string_ci "OR" *> return (fun e1 e2 -> EBinop (Or, e1, e2)))
       in
       term)
 ;;
@@ -196,3 +196,26 @@ let pcmdsmatch =
 let pmatch = pspacesstring "MATCH" *> pcmdsmatch
 let pcmds = choice [ pcreate; pmatch ] <* pspaceschar ';'
 let pcmdssep = many pcmds
+
+(* let%expect_test _ =
+  let _ =
+    let parsed =
+      parse_with
+        pcmdssep
+        {|
+        CREATE (:City{name:"Saint Petersburg", age: 20    });
+        CREATE (:City{name:"Moscow"});
+        MATCH (c {name: "Moscow"}) DETACH DELETE c;
+        MATCH (c) WHERE n.name   <> "Tom"  RETURN a, a.age >10 AND a.age <20 ;
+        MATCH ()-[r: SISTER]->() WHERE r.role = "Elder sister" RETURN r;
+        |}
+    in
+    let open Caml.Format in
+    match parsed with
+    | Error err -> printf "%s%!" err
+    | Ok commands -> printf "%a%!" pp_program commands
+  in
+  [%expect {|
+    
+     |}]
+;; *)
