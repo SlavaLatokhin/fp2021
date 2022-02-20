@@ -196,26 +196,3 @@ let pcmdsmatch =
 let pmatch = pspacesstring "MATCH" *> pcmdsmatch
 let pcmds = choice [ pcreate; pmatch ] <* pspaceschar ';'
 let pcmdssep = many pcmds
-
-(* let%expect_test _ =
-  let _ =
-    let parsed =
-      parse_with
-        pcmdssep
-        {|
-        CREATE (:City{name:"Saint Petersburg", age: 20    });
-        CREATE (:City{name:"Moscow"});
-        MATCH (c {name: "Moscow"}) DETACH DELETE c;
-        MATCH (c) WHERE n.name   <> "Tom"  RETURN a, a.age >10 AND a.age <20 ;
-        MATCH ()-[r: SISTER]->() WHERE r.role = "Elder sister" RETURN r;
-        |}
-    in
-    let open Caml.Format in
-    match parsed with
-    | Error err -> printf "%s%!" err
-    | Ok commands -> printf "%a%!" pp_program commands
-  in
-  [%expect {|
-    
-     |}]
-;; *)

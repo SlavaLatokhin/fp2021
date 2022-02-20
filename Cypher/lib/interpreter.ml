@@ -7,6 +7,30 @@ type value =
   | VBool of bool
 [@@deriving show { with_path = false }]
 
+let pp_value_ret fmt = function
+  | VString s -> Format.fprintf fmt "%S\n" s
+  | VInt n -> Format.fprintf fmt "%d\n" n
+  | VBool b -> Format.fprintf fmt "%b\n" b
+;;
+
+let pp_vproperties_ret fmt props =
+  List.iter
+    (fun prop ->
+      match prop with
+      | str, value -> Format.fprintf fmt "   \"%s\": %a " str pp_value_ret value)
+    props
+;;
+
+let pp_type_ret fmt labels =
+  List.iter (fun label -> Format.fprintf fmt "\"%s\",\n" label) labels
+;;
+
+let pp_labels_ret fmt labels =
+  Format.fprintf fmt "[\n";
+  List.iter (fun label -> Format.fprintf fmt "    \"%s\",\n" label) labels;
+  Format.fprintf fmt "  ],\n"
+;;
+
 type vproperty = string * value [@@deriving show { with_path = false }]
 type vproperties = vproperty list [@@deriving show { with_path = false }]
 
@@ -223,6 +247,30 @@ let rec interpret_expr env = function
           m)
       (Result.ok [])
       n
+;;
+
+let rec interpret_expr_for_ret = function
+  | EConst (CString s) -> Result.ok s
+  | EConst (CInt n) -> Result.ok (Int.to_string n)
+  | EGetProp (elm, field) -> Result.ok (elm ^ "." ^ field)
+  | EGetElm elm -> Result.ok elm
+  | EBinop (op, n, m) ->
+    let* n = interpret_expr_for_ret n in
+    let* m = interpret_expr_for_ret m in
+    let listabstvalue = "" in
+    (match op with
+    | Plus -> Result.ok (listabstvalue ^ n ^ "+" ^ m)
+    | Minus -> Result.ok (listabstvalue ^ n ^ "-" ^ m)
+    | Star -> Result.ok (listabstvalue ^ n ^ "*" ^ m)
+    | Slash -> Result.ok (listabstvalue ^ n ^ "/" ^ m)
+    | NotEqual -> Result.ok (listabstvalue ^ n ^ "<>" ^ m)
+    | Less -> Result.ok (listabstvalue ^ n ^ "<" ^ m)
+    | Greater -> Result.ok (listabstvalue ^ n ^ ">" ^ m)
+    | LessEq -> Result.ok (listabstvalue ^ n ^ "<=" ^ m)
+    | GreEq -> Result.ok (listabstvalue ^ n ^ ">=" ^ m)
+    | Equal -> Result.ok (listabstvalue ^ n ^ "=" ^ m)
+    | And -> Result.ok (listabstvalue ^ n ^ "AND" ^ m)
+    | Or -> Result.ok (listabstvalue ^ n ^ "OR" ^ m))
 ;;
 
 let get_props env props =
@@ -546,35 +594,62 @@ let interp_ret exprs graph env =
       (fun acc expr ->
         let* listret = acc in
         let* abstvaluelist = interpret_expr env expr in
-        Result.ok (listret @ abstvaluelist))
+        let exprabstvaluelist = expr, abstvaluelist in
+        Result.ok (listret @ [ exprabstvaluelist ]))
       (Result.ok [])
       exprs
   in
   List.fold_left
-    (fun acc elmret ->
+    (fun acc exprelmret ->
+      let expr, elmsret = exprelmret in
+      let* expr = interpret_expr_for_ret expr in
+      Format.fprintf Format.std_formatter "-------------------------------\n%s\n%!" expr;
       let* graph, env = acc in
-      match elmret with
-      | AValue value ->
-        Format.fprintf Format.std_formatter "%a\n%!" pp_value value;
-        Result.ok (graph, env)
-      | AElm elm ->
-        (match elm with
-        | (id, labels, props), (src, dst) ->
-          (match src, dst with
-          | Some _, Some _ ->
-            Format.fprintf
-              Format.std_formatter
-              "Edge: %a\n----------------------------------\n%!"
-              pp_elm_data
-              elm;
+      List.fold_left
+        (fun acc elmret ->
+          let* graph, env = acc in
+          match elmret with
+          | AValue value ->
+            pp_value_ret Format.std_formatter value;
             Result.ok (graph, env)
-          | _, _ ->
-            Format.fprintf
-              Format.std_formatter
-              "Node: %a\n----------------------------------\n%!"
-              pp_elm_data_src_dst
-              (id, labels, props);
-            Result.ok (graph, env))))
+          | AElm elm ->
+            (match elm with
+            | (id, labels, props), (src, dst) ->
+              (match src, dst with
+              | Some (idsrc, _, _), Some (iddst, _, _) ->
+                Format.fprintf
+                  Format.std_formatter
+                  "{\n\
+                  \  \"identity\": %d,\n\
+                  \  \"start\": %d,\n\
+                  \  \"end\": %d,\n\
+                  \  \"type\": %a  \"properties\": {\n\
+                  \ %a  }\n\
+                   }\n\n"
+                  id
+                  idsrc
+                  iddst
+                  pp_type_ret
+                  labels
+                  pp_vproperties_ret
+                  props;
+                Result.ok (graph, env)
+              | _, _ ->
+                Format.fprintf
+                  Format.std_formatter
+                  "{\n\
+                  \  \"identity\": %d,\n\
+                  \  \"labels\": %a  \"properties\": {\n\
+                  \ %a  }\n\
+                   }\n\n"
+                  id
+                  pp_labels_ret
+                  labels
+                  pp_vproperties_ret
+                  props;
+                Result.ok (graph, env))))
+        (Result.ok (graph, env))
+        elmsret)
     (Result.ok (graph, env))
     listret
 ;;

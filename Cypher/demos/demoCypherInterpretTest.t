@@ -11,18 +11,76 @@
   Vertex created
   Vertex created
   Vertex created
-  Node: (3, ["Person"], [("age", (VInt 20)); ("name", (VString "Kate"))])
-  ----------------------------------
-  Node: (4, ["Person"], [("age", (VInt 32)); ("name", (VString "Jim"))])
-  ----------------------------------
-  Node: (5, ["Person"], [("age", (VInt 39)); ("name", (VString "Ann"))])
-  ----------------------------------
-  Node: (2, ["Person"], [("age", (VInt 15)); ("name", (VString "Tom"))])
-  ----------------------------------
-  Node: (3, ["Person"], [("age", (VInt 20)); ("name", (VString "Kate"))])
-  ----------------------------------
-  Node: (4, ["Person"], [("age", (VInt 32)); ("name", (VString "Jim"))])
-  ----------------------------------
+  -------------------------------
+  n
+  {
+    "identity": 3,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 20
+      "name": "Kate"
+     }
+  }
+  
+  {
+    "identity": 4,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 32
+      "name": "Jim"
+     }
+  }
+  
+  {
+    "identity": 5,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 39
+      "name": "Ann"
+     }
+  }
+  
+  -------------------------------
+  n
+  {
+    "identity": 2,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 15
+      "name": "Tom"
+     }
+  }
+  
+  {
+    "identity": 3,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 20
+      "name": "Kate"
+     }
+  }
+  
+  {
+    "identity": 4,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 32
+      "name": "Jim"
+     }
+  }
+  
   $ ./demoCypherInterpret.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
   > (tom :Person :Student {name: "Tom", age: 15}), 
@@ -32,13 +90,35 @@
   Vertex created
   Vertex created
   Vertex created
-  (VString "Pam")
-  (VString "Kate")
-  Node: (2, ["Person"; "Student"],
-         [("age", (VInt 15)); ("name", (VString "Tom"))])
-  ----------------------------------
-  Node: (3, ["Person"], [("age", (VInt 20)); ("name", (VString "Kate"))])
-  ----------------------------------
+  -------------------------------
+  n.name
+  "Pam"
+  "Kate"
+  -------------------------------
+  n
+  {
+    "identity": 2,
+    "labels": [
+      "Person",
+      "Student",
+    ],
+    "properties": {
+      "age": 15
+      "name": "Tom"
+     }
+  }
+  
+  {
+    "identity": 3,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 20
+      "name": "Kate"
+     }
+  }
+  
   $ ./demoCypherInterpret.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
   > (tom :Person :Student {name: "Tom", age: 15}),
@@ -51,7 +131,7 @@
   > MATCH ()-[r ]->() WHERE r.role = "Elder sister" RETURN r;
   > MATCH ()-[r:PARENT]->({name: "Tom"}) WHERE r.role = "Father" RETURN r;
   > MATCH (n) WHERE n.age <39 AND n.age > 24 DETACH DELETE n;
-  > MATCH (n) RETURN n.name, n.age, n.age > 20;
+  > MATCH (n) RETURN n, n.name, n.age, n.age > 20;
   Vertex created
   Vertex created
   Vertex created
@@ -61,24 +141,81 @@
   Vertex created
   Edge created
   Edge created
-  Edge: ((9, ["SISTER"], [("role", (VString "Elder sister"))]),
-         ((Some (1, ["Person"], [("age", (VInt 40)); ("name", (VString "Pam"))])),
-          (Some (3, ["Person"], [("age", (VInt 25)); ("name", (VString "Ann"))]))))
-  ----------------------------------
-  Edge: ((8, ["PARENT"], [("role", (VString "Father"))]),
-         ((Some (7, ["Person"], [("age", (VInt 38)); ("name", (VString "Bob"))])),
-          (Some (2, ["Person"; "Student"],
-                 [("age", (VInt 15)); ("name", (VString "Tom"))]))))
-  ----------------------------------
-  (VString "Pam")
-  (VString "Tom")
-  (VString "Jessica")
-  (VInt 40)
-  (VInt 15)
-  (VInt 5)
-  (VBool true)
-  (VBool false)
-  (VBool false)
+  -------------------------------
+  r
+  {
+    "identity": 9,
+    "start": 1,
+    "end": 3,
+    "type": "SISTER",
+    "properties": {
+      "role": "Elder sister"
+     }
+  }
+  
+  -------------------------------
+  r
+  {
+    "identity": 8,
+    "start": 7,
+    "end": 2,
+    "type": "PARENT",
+    "properties": {
+      "role": "Father"
+     }
+  }
+  
+  -------------------------------
+  n
+  {
+    "identity": 1,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 40
+      "name": "Pam"
+     }
+  }
+  
+  {
+    "identity": 2,
+    "labels": [
+      "Person",
+      "Student",
+    ],
+    "properties": {
+      "age": 15
+      "name": "Tom"
+     }
+  }
+  
+  {
+    "identity": 5,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 5
+      "name": "Jessica"
+     }
+  }
+  
+  -------------------------------
+  n.name
+  "Pam"
+  "Tom"
+  "Jessica"
+  -------------------------------
+  n.age
+  40
+  15
+  5
+  -------------------------------
+  n.age>20
+  true
+  false
+  false
   $ ./demoCypherInterpret.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
   > (tom :Person :Student {name: "Tom", age: 15}),
@@ -97,18 +234,32 @@
   Edge created
   Vertex created
   Edge created
-  Edge: ((6, ["PARENT"], [("role", (VString "Mother"))]),
-         ((Some (3, ["Person"], [("age", (VInt 25)); ("name", (VString "Ann"))])),
-          (Some (5, ["Person"],
-                 [("age", (VInt 5)); ("name", (VString "Jessica"))]))))
-  ----------------------------------
-  Edge: ((4, ["PARENT"], [("role", (VString "Mother"))]),
-         ((Some (1, ["Person"], [("age", (VInt 40)); ("name", (VString "Pam"))])),
-          (Some (2, ["Person"; "Student"],
-                 [("age", (VInt 15)); ("name", (VString "Tom"))]))))
-  ----------------------------------
-  (VString "Mother")
-  (VString "Mother")
+  -------------------------------
+  r
+  {
+    "identity": 6,
+    "start": 3,
+    "end": 5,
+    "type": "PARENT",
+    "properties": {
+      "role": "Mother"
+     }
+  }
+  
+  {
+    "identity": 4,
+    "start": 1,
+    "end": 2,
+    "type": "PARENT",
+    "properties": {
+      "role": "Mother"
+     }
+  }
+  
+  -------------------------------
+  r.role
+  "Mother"
+  "Mother"
   $ ./demoCypherInterpret.exe <<-"EOF"
   > CREATE (:City{name:"Saint Petersburg"}),(:City{name:"Moscow"});
   > MATCH (c1:City{name:"Saint Petersburg"}), (c2:City{name:"Moscow"}) 
@@ -119,22 +270,61 @@
   Vertex created
   Edge created
   Edge created
-  Node: (1, ["City"], [("name", (VString "Saint Petersburg"))])
-  ----------------------------------
-  Node: (2, ["City"], [("name", (VString "Moscow"))])
-  ----------------------------------
-  Node: (3, ["User"], [("phone", (VInt 762042)); ("name", (VString "Vasya"))])
-  ----------------------------------
-  (VString "Saint Petersburg")
-  (VString "Moscow")
-  (VString "Vasya")
-  Edge: ((5, ["BORN_IN"], []),
-         ((Some (3, ["User"],
-                 [("phone", (VInt 762042)); ("name", (VString "Vasya"))])),
-          (Some (2, ["City"], [("name", (VString "Moscow"))]))))
-  ----------------------------------
-  Edge: ((4, ["LIVES_IN"], []),
-         ((Some (3, ["User"],
-                 [("phone", (VInt 762042)); ("name", (VString "Vasya"))])),
-          (Some (1, ["City"], [("name", (VString "Saint Petersburg"))]))))
-  ----------------------------------
+  -------------------------------
+  n
+  {
+    "identity": 1,
+    "labels": [
+      "City",
+    ],
+    "properties": {
+      "name": "Saint Petersburg"
+     }
+  }
+  
+  {
+    "identity": 2,
+    "labels": [
+      "City",
+    ],
+    "properties": {
+      "name": "Moscow"
+     }
+  }
+  
+  {
+    "identity": 3,
+    "labels": [
+      "User",
+    ],
+    "properties": {
+      "phone": 762042
+      "name": "Vasya"
+     }
+  }
+  
+  -------------------------------
+  n.name
+  "Saint Petersburg"
+  "Moscow"
+  "Vasya"
+  -------------------------------
+  r
+  {
+    "identity": 5,
+    "start": 3,
+    "end": 2,
+    "type": "BORN_IN",
+    "properties": {
+     }
+  }
+  
+  {
+    "identity": 4,
+    "start": 3,
+    "end": 1,
+    "type": "LIVES_IN",
+    "properties": {
+     }
+  }
+  
