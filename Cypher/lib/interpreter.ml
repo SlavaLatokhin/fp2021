@@ -29,7 +29,7 @@ type abstvalue =
   | AElm of elm_data
 [@@deriving show { with_path = false }]
 
-let gen_sum =
+let gen_sym =
   let id = ref 0 in
   fun () ->
     id := !id + 1;
@@ -242,7 +242,7 @@ let get_props env props =
 ;;
 
 let save_node var label vproperties graph env =
-  let node = (gen_sum (), label, vproperties), (None, None) in
+  let node = (gen_sym (), label, vproperties), (None, None) in
   Result.ok
     (Format.fprintf Format.std_formatter "Vertex created\n%!";
      ( Graph.add_vertex graph node
@@ -286,7 +286,7 @@ let peek_or_add_node env graph = function
 let save_edge var label vproperties graph env n1 n2 =
   match n1, n2 with
   | (elm1, (_, _)), (elm2, (_, _)) ->
-    let edge = (gen_sum (), [ label ], vproperties), (Some elm1, Some elm2) in
+    let edge = (gen_sym (), [ label ], vproperties), (Some elm1, Some elm2) in
     Result.ok
       (Format.fprintf Format.std_formatter "Edge created\n%!";
        ( Graph.add_edge_e graph (n1, edge, n2)
@@ -310,6 +310,15 @@ let check_data ddatas datas var elm env fdatas =
     | true -> Result.ok ((var, elm) :: env, (var, elm) :: fdatas)
     | false -> Result.ok (env, fdatas))
   | false -> Result.ok (env, fdatas)
+;;
+
+let check_data_with_where dprops props expr var =
+  match List.length dprops <= List.length props with
+  | true ->
+    (match List.for_all (fun dprop -> List.mem dprop props) dprops with
+    | true -> interpret_expr_where expr var props
+    | false -> Result.ok false)
+  | false -> Result.ok false
 ;;
 
 let send_check_datas_without_where dprops env labels props var elm fdatas = function
@@ -340,13 +349,7 @@ let send_check_datas_with_where dprops env labels props var expr = function
       (match List.length dlabels <= List.length labels with
       | true ->
         (match List.for_all (fun dlabel -> List.mem dlabel labels) dlabels with
-        | true ->
-          (match List.length dprops <= List.length props with
-          | true ->
-            (match List.for_all (fun dprop -> List.mem dprop props) dprops with
-            | true -> interpret_expr_where expr var props
-            | false -> Result.ok false)
-          | false -> Result.ok false)
+        | true -> check_data_with_where dprops props expr var
         | false -> Result.ok false)
       | false -> Result.ok false)
     | None ->
@@ -360,12 +363,7 @@ let send_check_datas_with_where dprops env labels props var expr = function
     (match dprops with
     | Some dprops ->
       let* dprops = get_props env dprops in
-      (match List.length dprops <= List.length props with
-      | true ->
-        (match List.for_all (fun dprop -> List.mem dprop props) dprops with
-        | true -> interpret_expr_where expr var props
-        | false -> Result.ok false)
-      | false -> Result.ok false)
+      check_data_with_where dprops props expr var
     | None -> interpret_expr_where expr var props)
 ;;
 
