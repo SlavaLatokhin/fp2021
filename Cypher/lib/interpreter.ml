@@ -13,12 +13,10 @@ let pp_value_ret fmt = function
   | VBool b -> Format.fprintf fmt "%b\n" b
 ;;
 
-let pp_vproperties_ret fmt props =
-  List.iter
-    (fun prop ->
+let pp_vproperties_ret fmt =
+  List.iter (fun prop ->
       match prop with
       | str, value -> Format.fprintf fmt "   \"%s\": %a " str pp_value_ret value)
-    props
 ;;
 
 let pp_type_ret fmt labels =
@@ -252,25 +250,25 @@ let rec interpret_expr env = function
 let rec interpret_expr_for_ret = function
   | EConst (CString s) -> Result.ok s
   | EConst (CInt n) -> Result.ok (Int.to_string n)
-  | EGetProp (elm, field) -> Result.ok (elm ^ "." ^ field)
+  | EGetProp (elm, field) -> Result.ok (String.concat "" [ elm; "."; field ])
   | EGetElm elm -> Result.ok elm
   | EBinop (op, n, m) ->
     let* n = interpret_expr_for_ret n in
     let* m = interpret_expr_for_ret m in
     let listabstvalue = "" in
     (match op with
-    | Plus -> Result.ok (listabstvalue ^ n ^ "+" ^ m)
-    | Minus -> Result.ok (listabstvalue ^ n ^ "-" ^ m)
-    | Star -> Result.ok (listabstvalue ^ n ^ "*" ^ m)
-    | Slash -> Result.ok (listabstvalue ^ n ^ "/" ^ m)
-    | NotEqual -> Result.ok (listabstvalue ^ n ^ "<>" ^ m)
-    | Less -> Result.ok (listabstvalue ^ n ^ "<" ^ m)
-    | Greater -> Result.ok (listabstvalue ^ n ^ ">" ^ m)
-    | LessEq -> Result.ok (listabstvalue ^ n ^ "<=" ^ m)
-    | GreEq -> Result.ok (listabstvalue ^ n ^ ">=" ^ m)
-    | Equal -> Result.ok (listabstvalue ^ n ^ "=" ^ m)
-    | And -> Result.ok (listabstvalue ^ n ^ "AND" ^ m)
-    | Or -> Result.ok (listabstvalue ^ n ^ "OR" ^ m))
+    | Plus -> Result.ok (String.concat "" [ listabstvalue; n; "+"; m ])
+    | Minus -> Result.ok (String.concat "" [ listabstvalue; n; "-"; m ])
+    | Star -> Result.ok (String.concat "" [ listabstvalue; n; "*"; m ])
+    | Slash -> Result.ok (String.concat "" [ listabstvalue; n; "/"; m ])
+    | NotEqual -> Result.ok (String.concat "" [ listabstvalue; n; "<>"; m ])
+    | Less -> Result.ok (String.concat "" [ listabstvalue; n; "<"; m ])
+    | Greater -> Result.ok (String.concat "" [ listabstvalue; n; ">"; m ])
+    | LessEq -> Result.ok (String.concat "" [ listabstvalue; n; "<="; m ])
+    | GreEq -> Result.ok (String.concat "" [ listabstvalue; n; ">="; m ])
+    | Equal -> Result.ok (String.concat "" [ listabstvalue; n; "="; m ])
+    | And -> Result.ok (String.concat "" [ listabstvalue; n; "AND"; m ])
+    | Or -> Result.ok (String.concat "" [ listabstvalue; n; "OR"; m ]))
 ;;
 
 let get_props env props =
