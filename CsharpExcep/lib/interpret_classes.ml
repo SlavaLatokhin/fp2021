@@ -79,8 +79,9 @@ module Interpret_classes (M : MONADERROR) = struct
                             , method_list )
                       | _ ->
                           error
-                            ( "The field with this key: " ^ field_key
-                            ^ " already exists" ) )
+                            (concut_strings
+                               [ "The field with this key: "; field_key
+                               ; " already exists" ] ) )
                       >>= fun (field_l, method_l) ->
                       helper_add_var ps field_l method_l in
                 helper_add_var arg_list field_list method_list
@@ -92,8 +93,9 @@ module Interpret_classes (M : MONADERROR) = struct
                     , {method_type; method_key; args; body} :: method_list )
               | _ ->
                   error
-                    ( "The method with this key: " ^ method_key
-                    ^ " already exists" ) ) in
+                    (concut_strings
+                       [ "The method with this key: "; method_key
+                       ; " already exists" ] ) ) in
           let rec iter_fields fields field_list method_list =
             match fields with
             | [] -> return (field_list, method_list)
@@ -114,7 +116,9 @@ module Interpret_classes (M : MONADERROR) = struct
                 ; dec_class= adding_class } in
               return (class_t :: cl_list)
           | _ ->
-              error ("The class with this key: " ^ class_key ^ " already exists")
+              error
+                (concut_strings
+                   ["The class with this key: "; class_key; " already exists"] )
           ) in
     let rec iter_classes class_list_ast class_list =
       match class_list_ast with

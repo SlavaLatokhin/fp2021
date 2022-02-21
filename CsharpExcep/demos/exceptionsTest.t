@@ -1,4 +1,4 @@
-  $ (cd ../../../../default && demos/demoException.exe) 
+  $ (./demoException.exe) 
   --- DemoException test in Main try-catch with finally ---
   
   Handled

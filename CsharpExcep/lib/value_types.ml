@@ -41,3 +41,5 @@ let find_field field_list field_key =
 
 let find_method method_list method_key =
   List.find (fun (x : method_t) -> method_key = x.method_key) method_list
+
+let concut_strings list_str = String.concat "" list_str

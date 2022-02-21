@@ -37,8 +37,7 @@ module Interpreter (M : MONADERROR) = struct
       ; visibility_level= 0 }
 
   let find_main_class (class_list : class_t list) =
-    let rec iter_classes class_l =
-      match class_l with
+    let rec iter_classes = function
       | [] -> error "There is no Main class!"
       | x :: xs -> (
         match find_opt_method x.method_list "Main" with
@@ -71,6 +70,14 @@ module Interpreter (M : MONADERROR) = struct
 
   let find_opt_var var_list var_key =
     List.find_opt (fun (x : variable) -> var_key = x.var_key) var_list
+
+  let find_method_monad meth_list meth_key =
+    match find_opt_method meth_list meth_key with
+    | None ->
+        error
+          (concut_strings
+             ["There is no given method "; meth_key; " in the Main class!"] )
+    | Some method_t -> return method_t
 
   let rec check_expr_type cur_expr ctx class_list =
     match cur_expr with
@@ -194,20 +201,14 @@ module Interpreter (M : MONADERROR) = struct
               "Incorrect type: the type should be Int, String, bool or CSharp \
                class!" )
     | Null -> return (CsClass "null")
-    | CallMethod (method_name, _) ->
-        let check_method_type meth_list meth_name =
-          match find_opt_method meth_list meth_name with
-          | None ->
-              error
-                ("There is no given method " ^ meth_name ^ " in the Main class")
-          | Some method_t -> return method_t in
+    | CallMethod (method_key, _) ->
         find_main_class class_list
         >>= fun curr_class ->
-        check_method_type curr_class.method_list method_name
+        find_method_monad curr_class.method_list method_key
         >>= fun mth -> return mth.method_type
     | ClassCreate (class_name, _) -> (
       match find_opt_class class_list class_name with
-      | None -> error ("Class " ^ class_name ^ " wasn't found" ^ "\n")
+      | None -> error (concut_strings ["Class "; class_name; " wasn't found!"])
       | Some _ -> return (CsClass class_name) )
     | IdentVar var_key -> (
       match find_opt_var ctx.variable_list var_key with
@@ -738,19 +739,13 @@ module Interpreter (M : MONADERROR) = struct
       | IdentVar var_key -> (
         match find_opt_var ctx.variable_list var_key with
         | Some var -> return {ctx with last_expr_result= var.var_value}
-        | None -> error ("The varibale " ^ var_key ^ " is not found") )
+        | None ->
+            error (concut_strings ["The varibale "; var_key; " is not found"]) )
       | Null -> return {ctx with last_expr_result= VClass ObjNull}
-      | CallMethod (method_name, args) -> (
+      | CallMethod (method_key, args) -> (
           find_main_class class_list
           >>= fun main_class ->
-          let check_method_type meth_list meth_name =
-            match find_opt_method meth_list meth_name with
-            | None ->
-                error
-                  ( "There is no given method " ^ meth_name
-                  ^ " in the Main class" )
-            | Some method_t -> return method_t in
-          check_method_type main_class.method_list method_name
+          find_method_monad main_class.method_list method_key
           >>= fun meth ->
           fill_var_list [] ctx args meth.args class_list
           >>= fun (new_var_list, new_ctx) ->

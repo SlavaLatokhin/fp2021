@@ -1,4 +1,4 @@
-  $ (cd ../../../../default && demos/demoInterpreter.exe) 
+  $ (./demoInterpreter.exe) 
   --- Assign test ----
   
   { variable_list =
