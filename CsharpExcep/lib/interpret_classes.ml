@@ -27,18 +27,11 @@ module Interpret_classes (M : MONADERROR) = struct
   open M
   open Value_types
 
-  let rec monadic_list_iter action list ret =
-    match list with
-    | [] -> return ret
-    | x :: xs -> action x >> monadic_list_iter action xs ret
-
-  let system_exception_init class_table =
-    let field_table = Hashtbl.create 16 in
-    let method_table = Hashtbl.create 16 in
+  let system_exception_init class_list =
     let body = StatementBlock [Return (Some (IdentVar "message"))] in
-    let to_string : method_t =
+    let method_t : method_t =
       {method_type= String; method_key= "ToString"; args= []; body} in
-    let message : field_t =
+    let field_t : field_t =
       {field_type= String; field_key= "message"; is_const= false; sub_tree= None}
     in
     let dec_class =
@@ -54,78 +47,88 @@ module Interpret_classes (M : MONADERROR) = struct
                 , []
                 , StatementBlock [Return (Some (IdentVar "message"))] ) ) ] )
     in
-    Hashtbl.add method_table
-      (String.concat "" ("ToString" :: List.map show_types (List.map fst [])))
-      to_string ;
-    Hashtbl.add field_table "message" message ;
-    Hashtbl.add class_table "Exception"
+    let class_t =
       { class_key= "Exception"
-      ; field_table
-      ; method_table
+      ; field_list= []
+      ; method_list= []
       ; parent_key= None
-      ; dec_class } ;
-    return class_table
+      ; dec_class } in
+    return (add_method class_t method_t)
+    >>= fun class_t ->
+    return (add_field class_t field_t)
+    >>= fun class_t -> return (class_t :: class_list)
 
-  let add_classes class_list class_table =
-    let add_class_in_table cl_table adding_class =
+  let add_classes class_list_ast class_list =
+    let add_class_in_list cl_list adding_class =
       match adding_class with
       | Class (_, class_key, parent, fields) -> (
-          (* Initialize tables *)
-          let method_table = Hashtbl.create 1024 in
-          let field_table = Hashtbl.create 1024 in
-          (* Function of adding a class element to the corresponding table *)
-          let add_class_elem : modifier list * field -> unit M.t =
-           fun field_elem ->
+          (* Function of adding a class element to the corresponding list *)
+          let add_class_elem field_elem field_list method_list =
             match field_elem with
             | mod_list, VariableField (field_type, arg_list) ->
-                let rec helper_add_var = function
-                  | [] -> return ()
+                let rec helper_add_var list field_list method_list =
+                  match list with
+                  | [] -> return (field_list, method_list)
                   | (field_key, sub_tree) :: ps ->
                       let is_const = List.mem Const mod_list in
-                      ( match Hashtbl.find_opt field_table field_key with
+                      ( match find_opt_field field_list field_key with
                       | None ->
-                          Hashtbl.add field_table field_key
-                            {field_type; field_key; is_const; sub_tree} ;
-                          return field_table
+                          return
+                            ( {field_type; field_key; is_const; sub_tree}
+                              :: field_list
+                            , method_list )
                       | _ ->
                           error
                             ( "The field with this key: " ^ field_key
                             ^ " already exists" ) )
-                      >> helper_add_var ps in
-                helper_add_var arg_list
-            | _, Method (method_type, method_key, args, body) ->
-                ( match Hashtbl.find_opt method_table method_key with
-                | None ->
-                    Hashtbl.add method_table method_key
-                      {method_type; method_key; args; body} ;
-                    return method_table
-                | _ ->
-                    error
-                      ( "The method with this key: " ^ method_key
-                      ^ " already exists" ) )
-                >> return () in
-          monadic_list_iter add_class_elem fields ()
-          >>
+                      >>= fun (field_l, method_l) ->
+                      helper_add_var ps field_l method_l in
+                helper_add_var arg_list field_list method_list
+            | _, Method (method_type, method_key, args, body) -> (
+              match find_opt_method method_list method_key with
+              | None ->
+                  return
+                    ( field_list
+                    , {method_type; method_key; args; body} :: method_list )
+              | _ ->
+                  error
+                    ( "The method with this key: " ^ method_key
+                    ^ " already exists" ) ) in
+          let rec iter_fields fields field_list method_list =
+            match fields with
+            | [] -> return (field_list, method_list)
+            | x :: xs ->
+                add_class_elem x field_list method_list
+                >>= fun (field_l, method_l) -> iter_fields xs field_l method_l
+          in
+          iter_fields fields [] []
+          >>= fun (field_list, method_list) ->
           let parent_key = parent in
-          match Hashtbl.find_opt cl_table class_key with
+          match find_opt_class cl_list class_key with
           | None ->
-              Hashtbl.add cl_table class_key
+              let class_t =
                 { class_key
-                ; field_table
-                ; method_table
+                ; field_list
+                ; method_list
                 ; parent_key
-                ; dec_class= adding_class } ;
-              return cl_table
+                ; dec_class= adding_class } in
+              return (class_t :: cl_list)
           | _ ->
               error ("The class with this key: " ^ class_key ^ " already exists")
           ) in
-    monadic_list_iter (add_class_in_table class_table) class_list class_table
+    let rec iter_classes class_list_ast class_list =
+      match class_list_ast with
+      | [] -> return class_list
+      | x :: xs ->
+          add_class_in_list class_list x
+          >>= fun class_l -> iter_classes xs class_l in
+    iter_classes class_list_ast class_list >>= fun class_l -> return class_l
 
-  let interpret_classes class_list class_table =
-    match class_list with
+  let interpret_classes class_list_ast class_list =
+    match class_list_ast with
     | [] -> error "No classes found, incorrect syntax or empty file"
     | _ ->
-        system_exception_init class_table
-        >>= fun class_table_with_ex ->
-        add_classes class_list class_table_with_ex
+        system_exception_init class_list
+        >>= fun class_list_with_ex ->
+        add_classes class_list_ast class_list_with_ex
 end

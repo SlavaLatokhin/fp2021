@@ -6,15 +6,13 @@ open
 
 open Csharp_lib.Interpreter.Interpreter (Csharp_lib.Interpret_classes.Result)
 
-let test_interp class_list class_table =
-  match interpret_classes class_list class_table with
-  | Error m -> print_endline m ; Hashtbl.clear class_table
-  | Ok load_table -> (
-    match start_interpreting load_table with
-    | Error m -> print_endline m ; Hashtbl.clear load_table
-    | Ok res_context ->
-        print_endline (show_context res_context ^ "\n") ;
-        Hashtbl.clear load_table )
+let test_interp class_list_ast class_list =
+  match interpret_classes class_list_ast class_list with
+  | Error m -> print_endline m
+  | Ok load_list -> (
+    match start_interpreting load_list with
+    | Error m -> print_endline m
+    | Ok res_context -> print_endline (show_context res_context ^ "\n") )
 
 let () = print_string "--- Assign test ----\n\n"
 
@@ -32,7 +30,7 @@ let parse_input =
                  }
                  |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- Arithmetic test ---\n\n"
 
 let parse_input =
@@ -63,7 +61,7 @@ let parse_input =
                        }
                        |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- Boolean expression test ---\n\n"
 
 let parse_input =
@@ -118,7 +116,7 @@ let parse_input =
                     }
                      |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- Cycles test ---\n\n"
 
 let parse_input =
@@ -144,7 +142,7 @@ let parse_input =
 
                        |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- While test ---\n\n"
 
 let parse_input =
@@ -169,7 +167,7 @@ let parse_input =
 
                        |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- If test ---\n\n"
 
 let parse_input =
@@ -194,7 +192,7 @@ let parse_input =
 
                        |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- If else if test ---\n\n"
 
 let parse_input =
@@ -225,7 +223,7 @@ let parse_input =
                  }
                        |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- Visibility level test ---\n\n"
 
 let parse_input =
@@ -272,7 +270,7 @@ let parse_input =
                          }
                           |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- Break test ---\n\n"
 
 let parse_input =
@@ -297,7 +295,7 @@ let parse_input =
 
                           |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- Continue test ---\n\n"
 
 let parse_input =
@@ -322,7 +320,7 @@ let parse_input =
 
                           |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- Recursion test ---\n\n"
 
 let parse_input =
@@ -353,7 +351,7 @@ let parse_input =
 
                           |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 let () = print_string "--- Const variables test ---\n\n"
 
 let parse_input =
@@ -370,4 +368,4 @@ let parse_input =
                      }
                           |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []

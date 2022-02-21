@@ -6,13 +6,13 @@ open
 
 open Csharp_lib.Interpreter.Interpreter (Csharp_lib.Interpret_classes.Result)
 
-let test_interp class_list class_table =
-  match interpret_classes class_list class_table with
-  | Error m -> print_endline m ; Hashtbl.clear class_table
-  | Ok load_table -> (
-    match start_interpreting load_table with
-    | Error m -> print_endline m ; Hashtbl.clear load_table
-    | Ok _ -> Hashtbl.clear load_table )
+let test_interp class_list_ast class_list =
+  match interpret_classes class_list_ast class_list with
+  | Error m -> print_endline m
+  | Ok load_list -> (
+    match start_interpreting load_list with
+    | Error m -> print_endline m
+    | Ok _ -> print_endline "" )
 
 let () =
   print_string "--- DemoException test in Main try-catch with finally ---\n\n"
@@ -40,7 +40,7 @@ let parse_input =
            }
            |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 
 let () =
   print_string
@@ -66,7 +66,7 @@ let parse_input =
            }
            |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 
 let () =
   print_string
@@ -101,7 +101,7 @@ let parse_input =
               }
               |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 
 let () =
   print_string
@@ -129,7 +129,7 @@ let parse_input =
               }
               |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 
 let () =
   print_string
@@ -175,7 +175,7 @@ let parse_input =
                   }
                   |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
 
 let () =
   print_string
@@ -218,4 +218,4 @@ let parse_input =
                   }
                   |} )
 
-let () = test_interp parse_input (Hashtbl.create 128)
+let () = test_interp parse_input []
