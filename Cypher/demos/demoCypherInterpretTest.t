@@ -1,18 +1,110 @@
   $ ./demoCypherInterpret.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
-  > (tom :Person  {name: "Tom", age: 15}), 
   > (kate :Person  {name: "Kate", age: 20}),
-  > (jim :Person  {name: "Jim", age: 32}),
-  > (ann :Person  {name: "Ann", age: 39});
-  > MATCH (n) WHERE n.name < "Pal" RETURN n;
-  > MATCH (n) WHERE n.age < 39 OR ((n.name = "Tom" OR n.name = "Kate") AND n.age >= 10+10) RETURN n;
+  > (jessica:Person{name:"Jessica", age: 5}),
+  > (gar:Person{name:"Garfield", age: 12});
+  > MATCH (z) WHERE z.name STARTS WITH "Gar" OR z.name CONTAINS "ssi" OR z.name ENDS WITH "te" 
+  > RETURN z, z.name CONTAINS "i"; 
+  Vertex created
+  Vertex created
+  Vertex created
+  Vertex created
+  -------------------------------
+  z
+  {
+    "identity": 2,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 20
+      "name": "Kate"
+     }
+  }
+  
+  {
+    "identity": 3,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 5
+      "name": "Jessica"
+     }
+  }
+  
+  {
+    "identity": 4,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 12
+      "name": "Garfield"
+     }
+  }
+  
+  -------------------------------
+  z.name CONTAINS i
+  false
+  true
+  true
+  $ ./demoCypherInterpret.exe <<-"EOF"
+  > CREATE (pam :Person {name: "Pam", age: 40}),
+  > (albina :Person  {name: "Albina", age: 17}),
+  > (alisa :Person  {name: "Alisa", age: 14}),
+  > (jessica:Person{name:"Jessica", age: 5}),
+  > (gar:Person{name:"Garfield", age: 12});
+  > MATCH (z) WHERE z.name CONTAINS "Al" AND z.name ENDS WITH "sa" OR z.name STARTS WITH "Gar" 
+  > RETURN z, z.name CONTAINS "i"; 
   Vertex created
   Vertex created
   Vertex created
   Vertex created
   Vertex created
   -------------------------------
-  n
+  z
+  {
+    "identity": 3,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 14
+      "name": "Alisa"
+     }
+  }
+  
+  {
+    "identity": 5,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "age": 12
+      "name": "Garfield"
+     }
+  }
+  
+  -------------------------------
+  z.name CONTAINS i
+  true
+  true
+  $ ./demoCypherInterpret.exe <<-"EOF"
+  > CREATE (pam :Person {name: "Pam", age: 40}),
+  > (tom :Person  {name: "Tom", age: 15}), 
+  > (kate :Person  {name: "Kate", age: 20}),
+  > (jim :Person  {name: "Jim", age: 32}),
+  > (ann :Person  {name: "Ann", age: 39});
+  > MATCH (x) WHERE x.name < "Pal" RETURN x;
+  > MATCH (y) WHERE y.age < 39 OR ((y.name = "Tom" OR y.name = "Kate") AND y.age >= 10+10) RETURN y;
+  Vertex created
+  Vertex created
+  Vertex created
+  Vertex created
+  Vertex created
+  -------------------------------
+  x
   {
     "identity": 3,
     "labels": [
@@ -47,7 +139,7 @@
   }
   
   -------------------------------
-  n
+  y
   {
     "identity": 2,
     "labels": [

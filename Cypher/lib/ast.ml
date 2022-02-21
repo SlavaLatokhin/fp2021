@@ -16,6 +16,9 @@ type binop =
   | Equal
   | And
   | Or
+  | StartWith
+  | EndWith
+  | Contain
 [@@deriving show { with_path = false }]
 
 type expr =

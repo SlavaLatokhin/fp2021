@@ -167,6 +167,20 @@ let rec interpret_rec_expr_where expr var props =
     | Equal, _, _ -> Result.ok (VBool (n = m))
     | And, VBool n, VBool m -> Result.ok (VBool (n && m))
     | Or, VBool n, VBool m -> Result.ok (VBool (n || m))
+    | StartWith, VString n, VString m ->
+      Result.ok (VBool (Str.string_match (Str.regexp_string m) n 0))
+    | EndWith, VString n, VString m ->
+      Result.ok
+        (VBool
+           (Str.string_match (Str.regexp_string m) n (String.length n - String.length m)))
+    | Contain, VString n, VString m ->
+      Result.ok
+        (VBool
+           (try
+              ignore (Str.search_forward (Str.regexp_string m) n 0);
+              true
+            with
+           | Not_found -> false))
     | _ -> Result.error IncorrectType)
 ;;
 
@@ -193,6 +207,26 @@ let interpret_expr_where expr var props =
     | Or ->
       (match n, m with
       | VBool n, VBool m -> Result.ok (n || m)
+      | _, _ -> Result.error IncorrectType)
+    | StartWith ->
+      (match n, m with
+      | VString n, VString m -> Result.ok (Str.string_match (Str.regexp_string m) n 0)
+      | _, _ -> Result.error IncorrectType)
+    | EndWith ->
+      (match n, m with
+      | VString n, VString m ->
+        Result.ok
+          (Str.string_match (Str.regexp_string m) n (String.length n - String.length m))
+      | _, _ -> Result.error IncorrectType)
+    | Contain ->
+      (match n, m with
+      | VString n, VString m ->
+        Result.ok
+          (try
+             ignore (Str.search_forward (Str.regexp_string m) n 0);
+             true
+           with
+          | Not_found -> false)
       | _, _ -> Result.error IncorrectType)
     | _ -> Result.error IncorrectWhere)
   | _ -> Result.error IncorrectWhere
@@ -239,6 +273,31 @@ let rec interpret_expr env = function
                 Result.ok (listabstvalue @ [ AValue (VBool (n && m)) ])
               | Or, VBool n, VBool m ->
                 Result.ok (listabstvalue @ [ AValue (VBool (n || m)) ])
+              | StartWith, VString n, VString m ->
+                Result.ok
+                  (listabstvalue
+                  @ [ AValue (VBool (Str.string_match (Str.regexp_string m) n 0)) ])
+              | EndWith, VString n, VString m ->
+                Result.ok
+                  (listabstvalue
+                  @ [ AValue
+                        (VBool
+                           (Str.string_match
+                              (Str.regexp_string m)
+                              n
+                              (String.length n - String.length m)))
+                    ])
+              | Contain, VString n, VString m ->
+                Result.ok
+                  (listabstvalue
+                  @ [ AValue
+                        (VBool
+                           (try
+                              ignore (Str.search_forward (Str.regexp_string m) n 0);
+                              true
+                            with
+                           | Not_found -> false))
+                    ])
               | _ -> Result.error IncorrectType)
             | _ -> Result.error IncorrectType)
           (Result.ok listabstvalue)
@@ -267,8 +326,11 @@ let rec interpret_expr_for_ret = function
     | LessEq -> Result.ok (String.concat "" [ listabstvalue; n; "<="; m ])
     | GreEq -> Result.ok (String.concat "" [ listabstvalue; n; ">="; m ])
     | Equal -> Result.ok (String.concat "" [ listabstvalue; n; "="; m ])
-    | And -> Result.ok (String.concat "" [ listabstvalue; n; "AND"; m ])
-    | Or -> Result.ok (String.concat "" [ listabstvalue; n; "OR"; m ]))
+    | And -> Result.ok (String.concat "" [ listabstvalue; n; " AND "; m ])
+    | Or -> Result.ok (String.concat "" [ listabstvalue; n; " OR "; m ])
+    | StartWith -> Result.ok (String.concat "" [ listabstvalue; n; " STARTS WITH "; m ])
+    | EndWith -> Result.ok (String.concat "" [ listabstvalue; n; " ENDS WITH "; m ])
+    | Contain -> Result.ok (String.concat "" [ listabstvalue; n; " CONTAINS "; m ]))
 ;;
 
 let get_props env props =

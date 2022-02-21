@@ -24,15 +24,15 @@ let pid =
          || ch = '_'))
 ;;
 
-let pidwithoutnumbs =
-  pspaces
-    (take_while1 (fun ch ->
-         (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch = '_'))
-;;
-
 let pcsring =
   pspaceschar '"' *> take_till (fun ch -> ch = '"')
   <* pspaceschar '"'
+  >>| fun c -> CString c
+;;
+
+let pcsringsnglq =
+  pspaceschar '\'' *> take_till (fun ch -> ch = '\'')
+  <* pspaceschar '\''
   >>| fun c -> CString c
 ;;
 
@@ -58,23 +58,50 @@ let pcint =
        | None -> fail "incorrect int"))
 ;;
 
-let pconst = choice [ pcsring; pcint ]
+let pconst = choice [ pcsring; pcsringsnglq; pcint ]
 let peconst = pconst >>| fun c -> EConst c
-let pgetelm = pidwithoutnumbs >>| fun var -> EGetElm var
+let pgetelm = pid >>| fun var -> EGetElm var
 
 let pgetprop =
+  lift2 (fun varelm varprop -> EGetProp (varelm, varprop)) (pid <* pspaceschar '.') pid
+;;
+
+let pconstcond = choice [ pcsring; pcsringsnglq ]
+let peconstcond = pconstcond >>| fun c -> EConst c
+
+let pstrtwith =
   lift2
-    (fun varelm varprop -> EGetProp (varelm, varprop))
-    (pidwithoutnumbs <* pspaceschar '.')
-    pidwithoutnumbs
+    (fun prop str -> EBinop (StartWith, prop, str))
+    (pgetprop <* pspacesstring "STARTS WITH")
+    peconstcond
+;;
+
+let pendwith =
+  lift2
+    (fun prop str -> EBinop (EndWith, prop, str))
+    (pgetprop <* pspacesstring "ENDS WITH")
+    peconstcond
+;;
+
+let pcontains =
+  lift2
+    (fun prop str -> EBinop (Contain, prop, str))
+    (pgetprop <* pspacesstring "CONTAINS")
+    peconst
 ;;
 
 let pegetelmorprop = choice [ pgetprop; pgetelm ]
+let pecondforstr = choice [ pstrtwith; pendwith; pcontains ]
 
 let pexpr =
   fix (fun pexpr ->
       let term =
-        choice [ pspaceschar '(' *> pexpr <* pspaceschar ')'; peconst; pegetelmorprop ]
+        choice
+          [ pspaceschar '(' *> pexpr <* pspaceschar ')'
+          ; pecondforstr
+          ; peconst
+          ; pegetelmorprop
+          ]
       in
       let term =
         chainl1
