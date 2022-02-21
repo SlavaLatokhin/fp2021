@@ -79,7 +79,7 @@ module Interpret_classes (M : MONADERROR) = struct
                             , method_list )
                       | _ ->
                           error
-                            (concut_strings
+                            (String.concat ""
                                [ "The field with this key: "; field_key
                                ; " already exists" ] ) )
                       >>= fun (field_l, method_l) ->
@@ -93,7 +93,7 @@ module Interpret_classes (M : MONADERROR) = struct
                     , {method_type; method_key; args; body} :: method_list )
               | _ ->
                   error
-                    (concut_strings
+                    (String.concat ""
                        [ "The method with this key: "; method_key
                        ; " already exists" ] ) ) in
           let rec iter_fields fields field_list method_list =
@@ -117,7 +117,7 @@ module Interpret_classes (M : MONADERROR) = struct
               return (class_t :: cl_list)
           | _ ->
               error
-                (concut_strings
+                (String.concat ""
                    ["The class with this key: "; class_key; " already exists"] )
           ) in
     let rec iter_classes class_list_ast class_list =

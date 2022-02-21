@@ -75,7 +75,7 @@ module Interpreter (M : MONADERROR) = struct
     match find_opt_method meth_list meth_key with
     | None ->
         error
-          (concut_strings
+          (String.concat ""
              ["There is no given method "; meth_key; " in the Main class!"] )
     | Some method_t -> return method_t
 
@@ -208,7 +208,8 @@ module Interpreter (M : MONADERROR) = struct
         >>= fun mth -> return mth.method_type
     | ClassCreate (class_name, _) -> (
       match find_opt_class class_list class_name with
-      | None -> error (concut_strings ["Class "; class_name; " wasn't found!"])
+      | None ->
+          error (String.concat "" ["Class "; class_name; " wasn't found!"])
       | Some _ -> return (CsClass class_name) )
     | IdentVar var_key -> (
       match find_opt_var ctx.variable_list var_key with
@@ -740,7 +741,8 @@ module Interpreter (M : MONADERROR) = struct
         match find_opt_var ctx.variable_list var_key with
         | Some var -> return {ctx with last_expr_result= var.var_value}
         | None ->
-            error (concut_strings ["The varibale "; var_key; " is not found"]) )
+            error (String.concat "" ["The varibale "; var_key; " is not found"])
+        )
       | Null -> return {ctx with last_expr_result= VClass ObjNull}
       | CallMethod (method_key, args) -> (
           find_main_class class_list

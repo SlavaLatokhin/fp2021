@@ -12,5 +12,12 @@
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
 
+(executable
+ (name demo)
+ (modules demo)
+ (libraries CsharpExcep.Lib)
+ (preprocess
+  (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
+
 (cram
- (deps ./demoInterpreter.exe ./demoException.exe))
+ (deps ./demoInterpreter.exe ./demoException.exe ./demo.exe ../REPL.exe))
