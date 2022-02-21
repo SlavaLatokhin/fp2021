@@ -629,12 +629,15 @@ module Interpreter (M : MONADERROR) = struct
 
   and eval_expr in_expr in_ctx class_list =
     let eval_helper e_expr ctx =
+      let eval_left_and_right left right =
+        eval_expr left ctx class_list
+        >>= fun left_ctx ->
+        eval_expr right left_ctx class_list
+        >>= fun right_ctx -> return (left_ctx, right_ctx) in
       match e_expr with
       | Plus (left, right) -> (
-          eval_expr left ctx class_list
-          >>= fun left_ctx ->
-          eval_expr right left_ctx class_list
-          >>= fun right_ctx ->
+          eval_left_and_right left right
+          >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
               return {right_ctx with last_expr_result= VInt (x + y)}
@@ -648,57 +651,45 @@ module Interpreter (M : MONADERROR) = struct
                 {right_ctx with last_expr_result= VString (x ^ string_of_int y)}
           | _, _ -> error "Incorrect argument types for adding" )
       | Min (left, right) -> (
-          eval_expr left ctx class_list
-          >>= fun left_ctx ->
-          eval_expr right left_ctx class_list
-          >>= fun right_ctx ->
+          eval_left_and_right left right
+          >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
               return {right_ctx with last_expr_result= VInt (x - y)}
           | _, _ -> error "Incorrect argument types for subtraction!" )
       | Mul (left, right) -> (
-          eval_expr left ctx class_list
-          >>= fun left_ctx ->
-          eval_expr right left_ctx class_list
-          >>= fun right_ctx ->
+          eval_left_and_right left right
+          >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
               return {right_ctx with last_expr_result= VInt (x * y)}
           | _, _ -> error "Incorrect argument types for multiplication!" )
       | Div (left, right) -> (
-          eval_expr left ctx class_list
-          >>= fun left_ctx ->
-          eval_expr right left_ctx class_list
-          >>= fun right_ctx ->
+          eval_left_and_right left right
+          >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt _, VInt y when y = 0 -> error "Division by zero!"
           | VInt x, VInt y ->
               return {right_ctx with last_expr_result= VInt (x / y)}
           | _, _ -> error "Incorrect argument types for division!" )
       | Mod (left, right) -> (
-          eval_expr left ctx class_list
-          >>= fun left_ctx ->
-          eval_expr right left_ctx class_list
-          >>= fun right_ctx ->
+          eval_left_and_right left right
+          >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt _, VInt y when y = 0 -> error "Division by zero!"
           | VInt x, VInt y ->
               return {right_ctx with last_expr_result= VInt (x mod y)}
           | _, _ -> error "Incorrect argument types for mod operator!" )
       | And (left, right) -> (
-          eval_expr left ctx class_list
-          >>= fun left_ctx ->
-          eval_expr right left_ctx class_list
-          >>= fun right_ctx ->
+          eval_left_and_right left right
+          >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VBool x, VBool y ->
               return {right_ctx with last_expr_result= VBool (x && y)}
           | _, _ -> error "Incorrect types for logical and operator!" )
       | Or (left, right) -> (
-          eval_expr left ctx class_list
-          >>= fun left_ctx ->
-          eval_expr right left_ctx class_list
-          >>= fun right_ctx ->
+          eval_left_and_right left right
+          >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VBool x, VBool y ->
               return {right_ctx with last_expr_result= VBool (x || y)}
@@ -710,10 +701,8 @@ module Interpreter (M : MONADERROR) = struct
           | VBool x -> return {new_ctx with last_expr_result= VBool (not x)}
           | _ -> error "Incorrect types for logical not operator!" )
       | Less (left, right) -> (
-          eval_expr left ctx class_list
-          >>= fun left_ctx ->
-          eval_expr right left_ctx class_list
-          >>= fun right_ctx ->
+          eval_left_and_right left right
+          >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
               return {right_ctx with last_expr_result= VBool (x < y)}
@@ -724,10 +713,8 @@ module Interpreter (M : MONADERROR) = struct
       | MoreOrEqual (left, right) ->
           eval_expr (Not (Less (left, right))) ctx class_list
       | Equal (left, right) -> (
-          eval_expr left ctx class_list
-          >>= fun left_ctx ->
-          eval_expr right left_ctx class_list
-          >>= fun right_ctx ->
+          eval_left_and_right left right
+          >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
               return {right_ctx with last_expr_result= VBool (x = y)}
