@@ -223,7 +223,7 @@
   > MATCH ()-[r ]->() WHERE r.role = "Elder sister" RETURN r;
   > MATCH ()-[r:PARENT]->({name: "Tom"}) WHERE r.role = "Father" RETURN r;
   > MATCH (n) WHERE n.age <39 AND n.age > 24 DETACH DELETE n;
-  > MATCH (n) RETURN n, n.name, n.age, n.age > 20;
+  > MATCH (n) RETURN n, n.name, n.age, n.age > 20, n.name CONTAINS "m";
   Vertex created
   Vertex created
   Vertex created
@@ -307,6 +307,11 @@
   n.age>20
   true
   false
+  false
+  -------------------------------
+  n.name CONTAINS m
+  true
+  true
   false
   $ ./demoCypherInterpret.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),

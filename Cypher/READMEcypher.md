@@ -82,7 +82,7 @@
 
 ---
 
-    ... RETURN n.name, n.age, n.age > 20
+    ... RETURN n.name, n.age, n.age > 20, n.name CONTAINS "m"
     -------------------------------
     n.name
     "Pam"
@@ -98,4 +98,10 @@
     true
     false
     false
-    
+    -------------------------------
+    n.name CONTAINS m
+    true
+    true
+    false
+
+P.S. Многочисленные  и единичные запросы необходимо писать через `;`.
