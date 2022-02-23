@@ -1,23 +1,16 @@
 (executable
- (name demoInterpreter)
- (modules demoInterpreter)
+ (name demoOnlyPrint)
+ (modules demoOnlyPrint)
  (libraries CsharpExcep.Lib)
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
 
 (executable
- (name demoException)
- (modules demoException)
- (libraries CsharpExcep.Lib)
- (preprocess
-  (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
-
-(executable
- (name demo)
- (modules demo)
+ (name demoShowContext)
+ (modules demoShowContext)
  (libraries CsharpExcep.Lib)
  (preprocess
   (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
 
 (cram
- (deps ./demoInterpreter.exe ./demoException.exe ./demo.exe ../REPL.exe))
+ (deps ./demoOnlyPrint.exe ./demoShowContext.exe ../REPL.exe))

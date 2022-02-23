@@ -24,7 +24,9 @@ module Interpreter (M : MONADERROR) = struct
     ; last_expr_result: values
     ; runtime_signal: signal
     ; count_of_nested_cycles: int
-    ; visibility_level: int }
+    ; visibility_level: int
+    ; post_inc: key_t list
+    ; post_dec: key_t list }
   [@@deriving show {with_path= false}]
 
   let init_contex variable_list =
@@ -34,7 +36,9 @@ module Interpreter (M : MONADERROR) = struct
       ; last_expr_result= VVoid
       ; runtime_signal= NoSignal
       ; count_of_nested_cycles= 0
-      ; visibility_level= 0 }
+      ; visibility_level= 0
+      ; post_inc= []
+      ; post_dec= [] }
 
   let find_main_class (class_list : class_t list) =
     let rec iter_classes = function
@@ -46,6 +50,28 @@ module Interpreter (M : MONADERROR) = struct
     iter_classes class_list
 
   let add_var ctx var = {ctx with variable_list= var :: ctx.variable_list}
+
+  let remove_key_post_inc ctx var_key =
+    let check_var_key x = if var_key = x then None else Some x in
+    let rec change_var_key il =
+      match il with
+      | [] -> il
+      | x :: xs -> (
+        match check_var_key x with
+        | None -> change_var_key xs
+        | Some el -> el :: change_var_key xs ) in
+    {ctx with post_inc= change_var_key ctx.post_inc}
+
+  let remove_key_post_dec ctx var_key =
+    let check_var_key x = if var_key = x then None else Some x in
+    let rec change_var_key dl =
+      match dl with
+      | [] -> dl
+      | x :: xs -> (
+        match check_var_key x with
+        | None -> change_var_key xs
+        | Some el -> el :: change_var_key xs ) in
+    {ctx with post_dec= change_var_key ctx.post_dec}
 
   let remove_var ctx var_key =
     let check_var_key (x : variable) =
@@ -251,6 +277,8 @@ module Interpreter (M : MONADERROR) = struct
   let rec eval_stat stat in_ctx class_list =
     match stat with
     | Expression expr ->
+        eval_post_operation in_ctx
+        >>= fun in_ctx ->
         if expr_in_stat expr then
           eval_expr expr in_ctx class_list >>= fun new_ctx -> return new_ctx
         else error "Incorrect expression for statement"
@@ -276,9 +304,13 @@ module Interpreter (M : MONADERROR) = struct
             | _ ->
                 eval_stat st ctx class_list
                 >>= fun head_ctx -> eval_stat_bl tail head_ctx ) in
-        eval_stat_bl stat_list in_ctx >>= fun new_ctx -> return new_ctx
+        eval_stat_bl stat_list in_ctx
+        >>= fun new_ctx ->
+        eval_post_operation new_ctx >>= fun new_ctx -> return new_ctx
     | If (expr, then_stat, else_stat_opt) -> (
         eval_expr expr in_ctx class_list
+        >>= fun if_ctx ->
+        eval_post_operation if_ctx
         >>= fun if_ctx ->
         match if_ctx.last_expr_result with
         | VBool true -> (
@@ -321,6 +353,8 @@ module Interpreter (M : MONADERROR) = struct
                   ; count_of_nested_cycles= ctx.count_of_nested_cycles - 1 }
           else
             eval_expr expr ctx class_list
+            >>= fun new_ctx ->
+            eval_post_operation new_ctx
             >>= fun new_ctx ->
             match new_ctx.last_expr_result with
             | VBool false -> (
@@ -365,6 +399,8 @@ module Interpreter (M : MONADERROR) = struct
               {in_ctx with visibility_level= in_ctx.visibility_level + 1}
               class_list )
         >>= fun new_ctx ->
+        eval_post_operation new_ctx
+        >>= fun new_ctx ->
         let remove_loop_vars ctx =
           let check_visibility_level (x : variable) =
             if x.visibility_level = ctx.visibility_level then None else Some x
@@ -384,6 +420,8 @@ module Interpreter (M : MONADERROR) = struct
           | None -> return {ctx with last_expr_result= VBool true}
           | Some expr_t -> eval_expr expr_t ctx class_list )
           >>= fun cond_ctx ->
+          eval_post_operation cond_ctx
+          >>= fun cond_ctx ->
           match cond_ctx.last_expr_result with
           (* If false, it means we are no longer cycling, we return the context with a reduced
              counter of nested_cycle and visibility_level*)
@@ -395,7 +433,8 @@ module Interpreter (M : MONADERROR) = struct
           | VBool true -> (
               let rec interpret_expr_list e_list as_ctx =
                 match e_list with
-                | [] -> return as_ctx
+                | [] ->
+                    eval_post_operation as_ctx >>= fun as_ctx -> return as_ctx
                 | x :: xs ->
                     if expr_in_stat x then
                       eval_expr x as_ctx class_list
@@ -439,6 +478,8 @@ module Interpreter (M : MONADERROR) = struct
           error "There is no loop to do continue"
         else return {in_ctx with runtime_signal= WasContinue}
     | Return None when in_ctx.current_method_type = Void ->
+        eval_post_operation in_ctx
+        >>= fun in_ctx ->
         (* If the type is Void, we exit with the Void value set by the signal that was return *)
         return {in_ctx with last_expr_result= VVoid; runtime_signal= WasReturn}
     | Return None -> error "Return value type mismatch"
@@ -451,6 +492,8 @@ module Interpreter (M : MONADERROR) = struct
           (* We return the context in which there is the result of the expression
              and set the signal that was return *)
           eval_expr expr in_ctx class_list
+          >>= fun new_ctx ->
+          eval_post_operation new_ctx
           >>= fun new_ctx -> return {new_ctx with runtime_signal= WasReturn}
     | VarDeclare (modifier, vars_type, var_list) ->
         let is_const : modifier option -> bool = function
@@ -485,6 +528,8 @@ module Interpreter (M : MONADERROR) = struct
                   match var_expr_type with
                   | _ when var_expr_type = vars_type ->
                       eval_expr var_expr var_ctx class_list
+                      >>= fun expr_ctx ->
+                      eval_post_operation expr_ctx
                       >>= fun expr_ctx ->
                       let var =
                         { var_key= var_name
@@ -539,12 +584,14 @@ module Interpreter (M : MONADERROR) = struct
               let return_value = finally_ctx.last_expr_result in
               eval_stat finally_stat
                 { finally_ctx with
-                  visibility_level= finally_ctx.visibility_level + 1 }
+                  runtime_signal= NoSignal
+                ; visibility_level= finally_ctx.visibility_level + 1 }
                 class_list
               >>= fun f_ctx ->
               return
                 { f_ctx with
-                  last_expr_result= return_value
+                  runtime_signal= WasReturn
+                ; last_expr_result= return_value
                 ; visibility_level= f_ctx.visibility_level - 1 }
           | Some (StatementBlock _ as finally_stat) ->
               (*It is important to save the signal so that finally is executed in
@@ -617,6 +664,8 @@ module Interpreter (M : MONADERROR) = struct
     | Print print_expr ->
         eval_expr print_expr in_ctx class_list
         >>= fun new_ctx ->
+        eval_post_operation new_ctx
+        >>= fun new_ctx ->
         let eval_printer = function
           | VInt value -> return (printf "%d\n" value)
           | VBool value -> return (printf "%b\n" value)
@@ -631,14 +680,16 @@ module Interpreter (M : MONADERROR) = struct
 
   and eval_expr in_expr in_ctx class_list =
     let eval_helper e_expr ctx =
-      let eval_left_and_right left right =
+      let eval_left_and_right ctx left right =
+        eval_post_operation ctx
+        >>= fun ctx ->
         eval_expr left ctx class_list
         >>= fun left_ctx ->
         eval_expr right left_ctx class_list
         >>= fun right_ctx -> return (left_ctx, right_ctx) in
       match e_expr with
       | Plus (left, right) -> (
-          eval_left_and_right left right
+          eval_left_and_right ctx left right
           >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
@@ -653,21 +704,21 @@ module Interpreter (M : MONADERROR) = struct
                 {right_ctx with last_expr_result= VString (x ^ string_of_int y)}
           | _, _ -> error "Incorrect argument types for adding" )
       | Min (left, right) -> (
-          eval_left_and_right left right
+          eval_left_and_right ctx left right
           >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
               return {right_ctx with last_expr_result= VInt (x - y)}
           | _, _ -> error "Incorrect argument types for subtraction!" )
       | Mul (left, right) -> (
-          eval_left_and_right left right
+          eval_left_and_right ctx left right
           >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
               return {right_ctx with last_expr_result= VInt (x * y)}
           | _, _ -> error "Incorrect argument types for multiplication!" )
       | Div (left, right) -> (
-          eval_left_and_right left right
+          eval_left_and_right ctx left right
           >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt _, VInt y when y = 0 -> error "Division by zero!"
@@ -675,7 +726,7 @@ module Interpreter (M : MONADERROR) = struct
               return {right_ctx with last_expr_result= VInt (x / y)}
           | _, _ -> error "Incorrect argument types for division!" )
       | Mod (left, right) -> (
-          eval_left_and_right left right
+          eval_left_and_right ctx left right
           >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt _, VInt y when y = 0 -> error "Division by zero!"
@@ -683,27 +734,29 @@ module Interpreter (M : MONADERROR) = struct
               return {right_ctx with last_expr_result= VInt (x mod y)}
           | _, _ -> error "Incorrect argument types for mod operator!" )
       | And (left, right) -> (
-          eval_left_and_right left right
+          eval_left_and_right ctx left right
           >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VBool x, VBool y ->
               return {right_ctx with last_expr_result= VBool (x && y)}
           | _, _ -> error "Incorrect types for logical and operator!" )
       | Or (left, right) -> (
-          eval_left_and_right left right
+          eval_left_and_right ctx left right
           >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VBool x, VBool y ->
               return {right_ctx with last_expr_result= VBool (x || y)}
           | _, _ -> error "Incorrect types for logical or operator!" )
       | Not not_expr -> (
+          eval_post_operation ctx
+          >>= fun ctx ->
           eval_expr not_expr ctx class_list
           >>= fun new_ctx ->
           match new_ctx.last_expr_result with
           | VBool x -> return {new_ctx with last_expr_result= VBool (not x)}
           | _ -> error "Incorrect types for logical not operator!" )
       | Less (left, right) -> (
-          eval_left_and_right left right
+          eval_left_and_right ctx left right
           >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
@@ -715,7 +768,7 @@ module Interpreter (M : MONADERROR) = struct
       | MoreOrEqual (left, right) ->
           eval_expr (Not (Less (left, right))) ctx class_list
       | Equal (left, right) -> (
-          eval_left_and_right left right
+          eval_left_and_right ctx left right
           >>= fun (left_ctx, right_ctx) ->
           match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
           | VInt x, VInt y ->
@@ -736,13 +789,17 @@ module Interpreter (M : MONADERROR) = struct
           | _ -> error "Incorrect types for equality!" )
       | NotEqual (left, right) ->
           eval_expr (Not (Equal (left, right))) ctx class_list
-      | ConstExpr value -> return {ctx with last_expr_result= value}
+      | ConstExpr value ->
+          eval_post_operation ctx
+          >>= fun ctx -> return {ctx with last_expr_result= value}
       | IdentVar var_key -> (
-        match find_opt_var ctx.variable_list var_key with
-        | Some var -> return {ctx with last_expr_result= var.var_value}
-        | None ->
-            error (String.concat "" ["The varibale "; var_key; " is not found"])
-        )
+          eval_post_operation ctx
+          >>= fun ctx ->
+          match find_opt_var ctx.variable_list var_key with
+          | Some var -> return {ctx with last_expr_result= var.var_value}
+          | None ->
+              error
+                (String.concat "" ["The varibale "; var_key; " is not found"]) )
       | Null -> return {ctx with last_expr_result= VClass ObjNull}
       | CallMethod (method_key, args) -> (
           find_main_class class_list
@@ -751,13 +808,17 @@ module Interpreter (M : MONADERROR) = struct
           >>= fun meth ->
           fill_var_list [] ctx args meth.args class_list
           >>= fun (new_var_list, new_ctx) ->
+          eval_post_operation new_ctx
+          >>= fun new_ctx ->
           eval_stat meth.body
             { variable_list= new_var_list
             ; current_method_type= meth.method_type
             ; last_expr_result= VVoid
             ; runtime_signal= NoSignal
             ; count_of_nested_cycles= 0
-            ; visibility_level= 0 }
+            ; visibility_level= 0
+            ; post_inc= []
+            ; post_dec= [] }
             class_list
           >>= fun res_ctx ->
           match res_ctx.runtime_signal with
@@ -773,6 +834,8 @@ module Interpreter (M : MONADERROR) = struct
                     ( if meth.method_type = Void then VVoid
                     else res_ctx.last_expr_result ) } )
       | Assign (IdentVar var_key, val_expr) -> (
+          eval_post_operation ctx
+          >>= fun ctx ->
           eval_expr val_expr ctx class_list
           >>= fun assign_ctx ->
           match find_opt_var assign_ctx.variable_list var_key with
@@ -785,17 +848,30 @@ module Interpreter (M : MONADERROR) = struct
                   var_value= assign_ctx.last_expr_result
                 ; assignment_count= old_var.assignment_count + 1 } in
               return (replace_var assign_ctx var_key var) )
-      | PostInc (IdentVar var_key) | PrefInc (IdentVar var_key) ->
+      | PrefInc (IdentVar var_key) ->
           eval_expr
             (Assign
                (IdentVar var_key, Plus (IdentVar var_key, ConstExpr (VInt 1)))
             )
             ctx class_list
-      | PostDec (IdentVar var_key) | PrefDec (IdentVar var_key) ->
+      | PrefDec (IdentVar var_key) ->
           eval_expr
             (Assign
                (IdentVar var_key, Min (IdentVar var_key, ConstExpr (VInt 1))) )
             ctx class_list
+      | PostInc (IdentVar var_key) ->
+          eval_expr
+            (Assign
+               (IdentVar var_key, Plus (IdentVar var_key, ConstExpr (VInt 0)))
+            )
+            ctx class_list
+          >>= fun ctx -> return {ctx with post_inc= var_key :: ctx.post_inc}
+      | PostDec (IdentVar var_key) ->
+          eval_expr
+            (Assign
+               (IdentVar var_key, Min (IdentVar var_key, ConstExpr (VInt 0))) )
+            ctx class_list
+          >>= fun ctx -> return {ctx with post_dec= var_key :: ctx.post_dec}
       | ClassCreate (class_name, _) ->
           let get_elem_list class_list key =
             match find_opt_class class_list key with
@@ -809,6 +885,55 @@ module Interpreter (M : MONADERROR) = struct
             {ctx with last_expr_result= VClass (ObjRef (class_key, parent_key))}
       | _ -> error "Incorrect expression!" in
     eval_helper in_expr in_ctx
+
+  and eval_post_operation ctx =
+    let rec eval_post_inc post_ctx post_inc =
+      match post_inc with
+      | [] -> return post_ctx
+      | x :: xs -> (
+        match find_opt_var post_ctx.variable_list x with
+        | None -> error "Variable not found"
+        | Some old_var ->
+            check_const_assign_variable old_var
+            >>= fun _ ->
+            let change_value =
+              match old_var.var_value with
+              | VInt v -> return (VInt (v + 1))
+              | _ -> error "Variable in post inc shoud be integer!" in
+            change_value
+            >>= fun value ->
+            let var =
+              { old_var with
+                var_value= value
+              ; assignment_count= old_var.assignment_count + 1 } in
+            return (replace_var post_ctx x var)
+            >>= fun new_ctx -> eval_post_inc (remove_key_post_inc new_ctx x) xs
+        ) in
+    let rec eval_post_dec post_ctx post_dec =
+      match post_dec with
+      | [] -> return post_ctx
+      | x :: xs -> (
+        match find_opt_var post_ctx.variable_list x with
+        | None -> error "Variable not found"
+        | Some old_var ->
+            check_const_assign_variable old_var
+            >>= fun _ ->
+            let change_value =
+              match old_var.var_value with
+              | VInt v -> return (VInt (v - 1))
+              | _ -> error "Variable in post inc shoud be integer!" in
+            change_value
+            >>= fun value ->
+            let var =
+              { old_var with
+                var_value= value
+              ; assignment_count= old_var.assignment_count + 1 } in
+            return (replace_var post_ctx x var)
+            >>= fun new_ctx -> eval_post_dec (remove_key_post_dec new_ctx x) xs
+        ) in
+    eval_post_inc ctx ctx.post_inc
+    >>= fun inc_ctx ->
+    eval_post_dec inc_ctx inc_ctx.post_dec >>= fun dec_ctx -> return dec_ctx
 
   and fill_var_list vl ctx args meth_args class_list =
     let update_var var_ctx arg meth_arg =
