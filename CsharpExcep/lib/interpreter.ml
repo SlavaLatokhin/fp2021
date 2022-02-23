@@ -887,8 +887,7 @@ module Interpreter (M : MONADERROR) = struct
     eval_helper in_expr in_ctx
 
   and eval_post_operation ctx =
-    let rec eval_post_inc post_ctx post_inc =
-      match post_inc with
+    let rec eval_post_inc post_ctx = function
       | [] -> return post_ctx
       | x :: xs -> (
         match find_opt_var post_ctx.variable_list x with
@@ -909,8 +908,7 @@ module Interpreter (M : MONADERROR) = struct
             return (replace_var post_ctx x var)
             >>= fun new_ctx -> eval_post_inc (remove_key_post_inc new_ctx x) xs
         ) in
-    let rec eval_post_dec post_ctx post_dec =
-      match post_dec with
+    let rec eval_post_dec post_ctx = function
       | [] -> return post_ctx
       | x :: xs -> (
         match find_opt_var post_ctx.variable_list x with
@@ -936,8 +934,7 @@ module Interpreter (M : MONADERROR) = struct
     eval_post_dec inc_ctx inc_ctx.post_dec >>= fun dec_ctx -> return dec_ctx
 
   and fill_var_list vl ctx args meth_args class_list =
-    let update_var var_ctx arg meth_arg =
-      match meth_arg with
+    let update_var var_ctx arg = function
       | var_type, var_key ->
           eval_expr arg var_ctx class_list
           >>= fun new_ctx ->
