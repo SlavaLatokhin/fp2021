@@ -1,6 +1,7 @@
 open Angstrom
 open Ast
 
+let ( <~> ) x xs = x >>= fun r -> xs >>= fun rs -> return (r :: rs)
 let parse_with p s = parse_string ~consume:Consume.All p s
 let debug = false
 let log s = if debug then Format.printf s else ()
@@ -10,6 +11,7 @@ let chainl1 e op =
   e >>= fun init -> go init
 ;;
 
+let pspace1 = take_while1 (fun ch -> ch = ' ' || ch = '\n')
 let pspace = take_while (fun ch -> ch = ' ' || ch = '\n')
 let pspaces p = pspace *> p <* pspace
 let pspaceschar chr = pspaces (char chr)
@@ -23,6 +25,8 @@ let pid =
          || (ch >= 'A' && ch <= 'Z')
          || ch = '_'))
 ;;
+
+let labelsedge = pspaceschar '`' *> take_till (fun ch -> ch = '`') <* pspaceschar '`'
 
 let pcsring =
   pspaceschar '"' *> take_till (fun ch -> ch = '"')
@@ -90,38 +94,57 @@ let pcontains =
     peconst
 ;;
 
+let pnotnull = pspacesstring "NOT" *> pspacesstring "NULL" >>| fun _ -> IsNotNull
+let pnull = pspacesstring "NULL" >>| fun _ -> IsNull
 let pegetelmorprop = choice [ pgetprop; pgetelm ]
 let pecondforstr = choice [ pstrtwith; pendwith; pcontains ]
 
+let pecondnull =
+  pgetprop
+  >>= fun prop ->
+  pspacesstring "IS" *> choice [ pnotnull; pnull ]
+  >>= fun condnull -> return (EUnop (condnull, prop))
+;;
+
+let pgettype = pspacesstring "type" *> pspaceschar '(' *> pid <* pspaceschar ')'
+let pegettype = pgettype >>| fun var -> EGetType var
+let pgetid = pspacesstring "id" *> pspaceschar '(' *> pid <* pspaceschar ')'
+let pegetid = pgetid >>| fun var -> EGetId var
+
 let pexpr =
   fix (fun pexpr ->
-      let term =
+      let penot = pspacesstring "NOT" *> pexpr >>| fun e -> EUnop (Not, e) in
+      let firstlvl =
         choice
-          [ pspaceschar '(' *> pexpr <* pspaceschar ')'
+          [ pegetid
+          ; pspaceschar '(' *> pexpr <* pspaceschar ')'
           ; pecondforstr
+          ; pecondnull
+          ; penot
+          ; pegettype
           ; peconst
           ; pegetelmorprop
           ]
       in
-      let term =
+      let mulslash =
         chainl1
-          term
+          firstlvl
           (choice
              [ char '*' *> return (fun e1 e2 -> EBinop (Star, e1, e2))
              ; char '/' *> return (fun e1 e2 -> EBinop (Slash, e1, e2))
              ])
       in
-      let term =
+      let addmin =
         chainl1
-          term
+          mulslash
           (choice
              [ char '+' *> return (fun e1 e2 -> EBinop (Plus, e1, e2))
              ; char '-' *> return (fun e1 e2 -> EBinop (Minus, e1, e2))
              ])
       in
-      let term =
+      let commp =
         chainl1
-          term
+          addmin
           (choice
              [ string "<>" *> return (fun e1 e2 -> EBinop (NotEqual, e1, e2))
              ; string "<=" *> return (fun e1 e2 -> EBinop (LessEq, e1, e2))
@@ -131,13 +154,16 @@ let pexpr =
              ; char '=' *> return (fun e1 e2 -> EBinop (Equal, e1, e2))
              ])
       in
-      let term =
-        chainl1 term (string_ci "AND" *> return (fun e1 e2 -> EBinop (And, e1, e2)))
+      let logic =
+        chainl1 commp (string_ci "AND " *> return (fun e1 e2 -> EBinop (And, e1, e2)))
       in
-      let term =
-        chainl1 term (string_ci "OR" *> return (fun e1 e2 -> EBinop (Or, e1, e2)))
+      let logic =
+        chainl1 logic (string_ci "OR " *> return (fun e1 e2 -> EBinop (Or, e1, e2)))
       in
-      term)
+      let logic =
+        chainl1 logic (string_ci "XOR " *> return (fun e1 e2 -> EBinop (Xor, e1, e2)))
+      in
+      logic)
 ;;
 
 let pproperty =
@@ -178,30 +204,59 @@ let pnode =
 
 let pedgedata =
   lift3
-    (fun var label props -> EdgeData (var, label, props))
+    (fun var label props -> var, label, props)
     (option None (pid >>| fun id -> Some id))
-    (option None (pspaceschar ':' *> pid >>| fun id -> Some id))
+    (option None (pspaceschar ':' *> (labelsedge <|> pid >>| fun id -> Some id)))
     (option None pproperties)
 ;;
 
-let pedge =
-  lift3
-    (fun n1 e n2 -> Edge (n1, e, n2))
-    pnode
-    (pspaceschar '-' *> pspaceschar '[' *> pedgedata
-    <* pspaceschar ']'
-    <* pspaceschar '-'
-    <* pspaceschar '>')
-    pnode
+let pedgewithdata =
+  pspaceschar '[' *> pedgedata
+  >>= fun datas ->
+  match datas with
+  | var, label, props ->
+    pspaceschar ']'
+    *> pspaceschar '-'
+    *> option
+         (EdgeData (UnDirect (var, label, props)))
+         (pspaceschar '>' >>| fun _ -> EdgeData (Direct (var, label, props)))
 ;;
 
+let pedgewithoutdata =
+  pspaceschar '-'
+  *> option
+       (EdgeData (UnDirect (None, None, None)))
+       (pspaceschar '>' >>| fun _ -> EdgeData (Direct (None, None, None)))
+;;
+
+let pedgetype = pspaceschar '-' *> choice [ pedgewithoutdata; pedgewithdata ]
+let pedge = lift3 (fun n1 e n2 -> Edge (n1, e, n2)) pnode pedgetype pnode
 let pelm = choice [ pedge; (pnode >>| fun nodedata -> Node nodedata) ]
 let pelms = sep_by (pspaceschar ',') pelm
 let pcreate = pspacesstring "CREATE" *> pelms >>| fun cmd -> CmdCreate cmd
 let pvar = pid
 let pvars = sep_by (pspaceschar ',') pvar
 let pexprs = sep_by (pspaceschar ',') pexpr
-let pmatchret = pspacesstring "RETURN" *> pexprs >>| fun exprs -> CMatchRet exprs
+
+let porder =
+  pspacesstring "ORDER" *> pspacesstring "BY" *> choice [ pegetid; pegetelmorprop ]
+  >>= fun cmd ->
+  option
+    (Order (cmd, None))
+    (choice
+       [ pspacesstring "ASC" *> return (Order (cmd, Some Asc))
+       ; pspacesstring "DESC" *> return (Order (cmd, Some Desc))
+       ])
+;;
+
+let pcmdret =
+  lift2
+    (fun exprs order -> CMatchRet (exprs, order))
+    pexprs
+    (option None (pspace *> porder >>| fun cmd -> Some cmd))
+;;
+
+let pmatchret = pspacesstring "RETURN" *> pcmdret
 let pmatchcreate = pspacesstring "CREATE" *> pelms >>| fun cmd -> CMatchCrt cmd
 
 let pmatchdelete =

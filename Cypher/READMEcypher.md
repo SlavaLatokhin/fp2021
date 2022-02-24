@@ -38,10 +38,12 @@
     MATCH (n1 {name: "Jack"})-[r: Parent {role: "Father"}]->(n2 :Student)
 
 ### `WHERE`
-Позволяет накладывать дополнительные ограничения на шаблоны поиска MATCH, при помощи операторов сравнения `<`, `<=`, `>`, `>=`, `<>`, `=`, логических операторов `AND`, `OR`, операторов поиска подстрок `STARTS WITH`, `ENDS WITH`, `CONTAINS`. Соответсвенно все это можно комбинировать.
+Позволяет накладывать дополнительные ограничения на шаблоны поиска MATCH, при помощи операторов сравнения `<`, `<=`, `>`, `>=`, `<>`, `=`, логических операторов `AND`, `OR`, `XOR`, `NOT` операторов поиска подстрок `STARTS WITH`, `ENDS WITH`, `CONTAINS`, операторов существования `IS NOT NULL`, `IS NULL`  Соответсвенно все это можно комбинировать.
 
     MATCH ... WHERE n.age > 20 AND n.name = "Jack" OR n.age = 35 ...
-    MATCH ... n.name CONTAINS "Al" AND n.name ENDS WITH "sa" OR n.name STARTS WITH "Gar" ...
+    MATCH ... WHERE n.name CONTAINS "Al" AND n.name ENDS WITH "sa" OR n.name STARTS WITH "Gar" ...
+    MATCH ... WHERE n.name = 'Peter' XOR (n.age < 30 AND n.name = 'Timothy') OR NOT (n.name = 'Timothy' OR n.name = 'Peter') ...
+    MATCH ... WHERE n.belt IS NOT NULL ...
 
 ## `DETACH DELETE`
 Позволяет удалять узлы и связи, предварительно записанные в переменную. Если узел имеет связи, то удаляются все исходящие и входящие ребра.
@@ -49,7 +51,7 @@
     ... DETACH DELETE n1, n2, r
 
 ## `RETURN`
-Позволяет отображать узлы, связи, свойства, логические условия ввиде true и false. Печать реализована в максимально приближенном к Cypher'у виде.
+Позволяет отображать узлы, связи, свойства, логические условия ввиде true и false. Позволяет сортировать вывод по определенным критериям в порядке возратания и убывания `ORDER BY` ~ `ORDERBY ASC`, `ORDERBY DESC` Печать реализована в максимально приближенном к Cypher'у виде.
 
     ... RETURN n
     
@@ -82,7 +84,7 @@
 
 ---
 
-    ... RETURN n.name, n.age, n.age > 20, n.name CONTAINS "m"
+    ... RETURN n.name, n.age, n.age > 20, n.name CONTAINS "m" ORDER BY n.age DESC
     -------------------------------
     n.name
     "Pam"
@@ -104,4 +106,4 @@
     true
     false
 
-P.S. Многочисленные  и единичные запросы необходимо писать через `;`.
+P.S. Подробные примеры из руководства Cypher можно посмотреть в тестах в папке demos. Многочисленные и единичные запросы необходимо писать через `;`.

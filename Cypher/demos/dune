@@ -10,5 +10,21 @@
  (public_name demoCypherInterpret)
  (libraries Cypher.Lib stdio))
 
+(executable
+ (name matchManual)
+ (modules matchManual)
+ (public_name matchManual)
+ (libraries Cypher.Lib stdio))
+
+(executable
+ (name whereManual)
+ (modules whereManual)
+ (public_name whereManual)
+ (libraries Cypher.Lib stdio))
+
 (cram
- (deps ./demoCypherParse.exe ./demoCypherInterpret.exe))
+ (deps
+  ./demoCypherInterpret.exe
+  ./demoCypherParse.exe
+  ./matchManual.exe
+  ./whereManual.exe))

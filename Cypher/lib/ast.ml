@@ -16,23 +16,40 @@ type binop =
   | Equal
   | And
   | Or
+  | Xor
   | StartWith
   | EndWith
   | Contain
 [@@deriving show { with_path = false }]
 
+type unop = 
+  | Not
+  | IsNotNull
+  | IsNull
+[@@deriving show { with_path = false }]
 type expr =
   | EConst of const
   | EGetProp of string * string
+  | EGetType of string
+  | EGetId of string
   | EGetElm of string
   | EBinop of binop * expr * expr
+  | EUnop of unop * expr
+[@@deriving show { with_path = false }]
+
+type exprList =expr list
+ 
 [@@deriving show { with_path = false }]
 
 (** {name:"Daniel"} *)
 type property = string * expr [@@deriving show { with_path = false }]
 
+type typeedge =
+  | Direct of string option * string option * property list option
+  | UnDirect of string option * string option * property list option
+[@@deriving show { with_path = false }]
 (** [edge : PARENT { role: "Father" }] *)
-type edgedata = EdgeData of string option * string option * property list option
+type edgedata = EdgeData of typeedge
 [@@deriving show { with_path = false }]
 
 (** (node : PERSON { name: "Daniel" }) *)
@@ -44,8 +61,17 @@ type elm =
   | Edge of nodedata * edgedata * nodedata (** (nodedata)-[edgedata]->(nodedata) *)
 [@@deriving show { with_path = false }]
 
+type ordercond =
+  |Asc
+  |Desc
+[@@deriving show { with_path = false }]
+
+type orderby =
+  | Order of expr * ordercond option 
+[@@deriving show { with_path = false }]
+
 type cmdmatch =
-  | CMatchRet of expr list (** RETURN vars *)
+  | CMatchRet of expr list * orderby option (** RETURN vars *)
   | CMatchDelete of string list (** DETACH DELETE vars *)
   | CMatchCrt of elm list (** CREATE elms *)
 [@@deriving show { with_path = false }]

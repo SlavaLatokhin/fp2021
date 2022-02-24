@@ -5,10 +5,7 @@
   > (gar:Person{name:"Garfield", age: 12});
   > MATCH (z) WHERE z.name STARTS WITH "Gar" OR z.name CONTAINS "ssi" OR z.name ENDS WITH "te" 
   > RETURN z, z.name CONTAINS "i"; 
-  Vertex created
-  Vertex created
-  Vertex created
-  Vertex created
+  Was created 4 nodes
   -------------------------------
   z
   {
@@ -57,11 +54,7 @@
   > (gar:Person{name:"Garfield", age: 12});
   > MATCH (z) WHERE z.name CONTAINS "Al" AND z.name ENDS WITH "sa" OR z.name STARTS WITH "Gar" 
   > RETURN z, z.name CONTAINS "i"; 
-  Vertex created
-  Vertex created
-  Vertex created
-  Vertex created
-  Vertex created
+  Was created 5 nodes
   -------------------------------
   z
   {
@@ -98,11 +91,7 @@
   > (ann :Person  {name: "Ann", age: 39});
   > MATCH (x) WHERE x.name < "Pal" RETURN x;
   > MATCH (y) WHERE y.age < 39 OR ((y.name = "Tom" OR y.name = "Kate") AND y.age >= 10+10) RETURN y;
-  Vertex created
-  Vertex created
-  Vertex created
-  Vertex created
-  Vertex created
+  Was created 5 nodes
   -------------------------------
   x
   {
@@ -179,9 +168,7 @@
   > (kate :Person  {name: "Kate", age: 20});
   > MATCH (n) WHERE n.age >= 20 RETURN n.name;
   > MATCH (n: Person) WHERE n.name = "Tom" OR n.name ="Kate" RETURN n;
-  Vertex created
-  Vertex created
-  Vertex created
+  Was created 3 nodes
   -------------------------------
   n.name
   "Pam"
@@ -224,15 +211,11 @@
   > MATCH ()-[r:PARENT]->({name: "Tom"}) WHERE r.role = "Father" RETURN r;
   > MATCH (n) WHERE n.age <39 AND n.age > 24 DETACH DELETE n;
   > MATCH (n) RETURN n, n.name, n.age, n.age > 20, n.name CONTAINS "m";
-  Vertex created
-  Vertex created
-  Vertex created
-  Edge created
-  Vertex created
-  Edge created
-  Vertex created
-  Edge created
-  Edge created
+  Was created 4 nodes
+  Was created 2 edges
+  Was created 1 nodes
+  Was created 1 edges
+  Was created 1 edges
   -------------------------------
   r
   {
@@ -322,15 +305,11 @@
   > MATCH (tom) WHERE tom.age >14 AND tom.age <16
   > CREATE (bob:Person {name: "Bob", age: 38})-[:PARENT {role: "Father"}]->(tom);
   > MATCH (n) WHERE n.age = 38 DETACH DELETE n;
-  > MATCH ()-[r]->() RETURN r, r.role;
-  Vertex created
-  Vertex created
-  Vertex created
-  Edge created
-  Vertex created
-  Edge created
-  Vertex created
-  Edge created
+  > MATCH ()-[r]->() RETURN r, r.role, type (r);
+  Was created 4 nodes
+  Was created 2 edges
+  Was created 1 nodes
+  Was created 1 edges
   -------------------------------
   r
   {
@@ -357,16 +336,18 @@
   r.role
   "Mother"
   "Mother"
+  -------------------------------
+  type(r)
+  "PARENT"
+  "PARENT"
   $ ./demoCypherInterpret.exe <<-"EOF"
   > CREATE (:City{name:"Saint Petersburg"}),(:City{name:"Moscow"});
   > MATCH (c1:City{name:"Saint Petersburg"}), (c2:City{name:"Moscow"}) 
   > CREATE (u:User{name:"Vasya", phone:762042})-[:LIVES_IN]->(c1), (u)-[:BORN_IN]->(c2);
-  > MATCH (n), ()-[r]->() RETURN n, n.name, r;
-  Vertex created
-  Vertex created
-  Vertex created
-  Edge created
-  Edge created
+  > MATCH (n), ()-[r]->() RETURN n, n.name, r, type (r);
+  Was created 2 nodes
+  Was created 1 nodes
+  Was created 2 edges
   -------------------------------
   n
   {
@@ -421,6 +402,35 @@
     "start": 3,
     "end": 1,
     "type": "LIVES_IN",
+    "properties": {
+     }
+  }
+  
+  -------------------------------
+  type(r)
+  "BORN_IN"
+  "LIVES_IN"
+  $ ./demoCypherInterpret.exe <<-"EOF"
+  > create (a:A),(b:B),(c:C),(d:D),(e:E), (a)-[:ab]->(b),(c)-[:cb]->(b), (b)-[:bd]->(d), (b)-[:be]->(e);
+  > match (n)-->(:B) return n;
+  Was created 5 nodes
+  Was created 4 edges
+  -------------------------------
+  n
+  {
+    "identity": 3,
+    "labels": [
+      "C",
+    ],
+    "properties": {
+     }
+  }
+  
+  {
+    "identity": 1,
+    "labels": [
+      "A",
+    ],
     "properties": {
      }
   }

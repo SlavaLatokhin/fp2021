@@ -2,7 +2,7 @@
   > CREATE (:City{name:"Saint Petersburg"}),(:City{name:"Moscow"});
   > MATCH (c1:City{name:"Saint Petersburg"}), (c2:City{name:"Moscow"}) 
   > CREATE (u:User{name:"Vasya", phone:762042})-[:LIVES_IN]->(c1), (u)-[:BORN_IN]->(c2);
-  > MATCH (n), ()-[r]->() RETURN n, r;
+  > MATCH (n), ()-[r]-() RETURN n, r;
   [(CmdCreate
       [(Node
           (NodeData (None, (Some ["City"]),
@@ -26,10 +26,10 @@
                   (Some [("name", (EConst (CString "Vasya")));
                           ("phone", (EConst (CInt 762042)))])
                   )),
-               (EdgeData (None, (Some "LIVES_IN"), None)),
+               (EdgeData (Direct (None, (Some "LIVES_IN"), None))),
                (NodeData ((Some "c1"), None, None))));
              (Edge ((NodeData ((Some "u"), None, None)),
-                (EdgeData (None, (Some "BORN_IN"), None)),
+                (EdgeData (Direct (None, (Some "BORN_IN"), None))),
                 (NodeData ((Some "c2"), None, None))))
              ])
          ]
@@ -37,10 +37,10 @@
     (CmdMatch (
        [(Node (NodeData ((Some "n"), None, None)));
          (Edge ((NodeData (None, None, None)),
-            (EdgeData ((Some "r"), None, None)), (NodeData (None, None, None))
-            ))
+            (EdgeData (UnDirect ((Some "r"), None, None))),
+            (NodeData (None, None, None))))
          ],
-       None, [(CMatchRet [(EGetElm "n"); (EGetElm "r")])]))
+       None, [(CMatchRet ([(EGetElm "n"); (EGetElm "r")], None))]))
     ]
   $ ./demoCypherParse.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
@@ -69,9 +69,9 @@
        [(Node
            (NodeData ((Some "n"), None, (Some [("age", (EConst (CInt 40)))]))))
          ],
-       None, [(CMatchRet [(EGetElm "n")])]));
+       None, [(CMatchRet ([(EGetElm "n")], None))]));
     (CmdMatch ([(Node (NodeData ((Some "n"), (Some ["Student"]), None)))],
-       None, [(CMatchRet [(EGetElm "n")])]))
+       None, [(CMatchRet ([(EGetElm "n")], None))]))
     ]
   $ ./demoCypherParse.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
@@ -102,12 +102,14 @@
                       ("age", (EConst (CInt 25)))])
               )));
         (Edge ((NodeData ((Some "pam"), None, None)),
-           (EdgeData (None, (Some "PARENT"),
-              (Some [("role", (EConst (CString "Mother")))]))),
+           (EdgeData
+              (Direct (None, (Some "PARENT"),
+                 (Some [("role", (EConst (CString "Mother")))])))),
            (NodeData ((Some "tom"), None, None))));
         (Edge ((NodeData ((Some "ann"), None, None)),
-           (EdgeData (None, (Some "PARENT"),
-              (Some [("role", (EConst (CString "Mother")))]))),
+           (EdgeData
+              (Direct (None, (Some "PARENT"),
+                 (Some [("role", (EConst (CString "Mother")))])))),
            (NodeData ((Some "jessica"), (Some ["Person"]),
               (Some [("name", (EConst (CString "Jessica")));
                       ("age", (EConst (CInt 5)))])
@@ -128,8 +130,9 @@
                   (Some [("name", (EConst (CString "Bob")));
                           ("age", (EConst (CInt 38)))])
                   )),
-               (EdgeData (None, (Some "PARENT"),
-                  (Some [("role", (EConst (CString "Father")))]))),
+               (EdgeData
+                  (Direct (None, (Some "PARENT"),
+                     (Some [("role", (EConst (CString "Father")))])))),
                (NodeData ((Some "tom"), None, None))))
              ])
          ]
@@ -145,18 +148,19 @@
        None,
        [(CMatchCrt
            [(Edge ((NodeData ((Some "p1"), None, None)),
-               (EdgeData (None, (Some "SISTER"),
-                  (Some [("role", (EConst (CString "Elder sister")))]))),
+               (EdgeData
+                  (Direct (None, (Some "SISTER"),
+                     (Some [("role", (EConst (CString "Elder sister")))])))),
                (NodeData ((Some "p2"), None, None))))
              ])
          ]
        ));
     (CmdMatch (
        [(Edge ((NodeData (None, None, None)),
-           (EdgeData ((Some "r"), (Some "SISTER"), None)),
+           (EdgeData (Direct ((Some "r"), (Some "SISTER"), None))),
            (NodeData (None, None, None))))
          ],
-       None, [(CMatchRet [(EGetElm "r")])]));
+       None, [(CMatchRet ([(EGetElm "r")], None))]));
     (CmdMatch (
        [(Node
            (NodeData ((Some "tom"), None,
@@ -166,5 +170,5 @@
          ],
        None, [(CMatchDelete ["tom"])]));
     (CmdMatch ([(Node (NodeData ((Some "n"), None, None)))], None,
-       [(CMatchRet [(EGetElm "n")])]))
+       [(CMatchRet ([(EGetElm "n")], None))]))
     ]
