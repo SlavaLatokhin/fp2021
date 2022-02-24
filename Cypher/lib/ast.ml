@@ -38,8 +38,6 @@ type expr =
   | EUnop of unop * expr
 [@@deriving show { with_path = false }]
 
-type exprList = expr list [@@deriving show { with_path = false }]
-
 (** {name:"Daniel"} *)
 type property = string * expr [@@deriving show { with_path = false }]
 

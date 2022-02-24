@@ -211,8 +211,7 @@ let pedgedata =
 
 let pedgewithdata =
   pspaceschar '[' *> pedgedata
-  >>= fun datas ->
-  match datas with
+  >>= function
   | var, label, props ->
     pspaceschar ']'
     *> pspaceschar '-'

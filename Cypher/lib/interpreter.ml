@@ -607,8 +607,7 @@ let send_check_datas id dprops props labels var elm env fdatas dlabels typeofelm
 
 let iter_edges fedges var dlabels dprops cmdwithmatch env fnode1 fnode2 stbledges =
   List.fold_left
-    (fun acc fedge ->
-      match fedge with
+    (fun acc -> function
       | _, fedata, _ ->
         (match fedata with
         | (id, labels, props), (_, _) ->
@@ -645,8 +644,7 @@ The function finds all edges between two nodes,
 iterates one by one and sends it for comparison 
 with user-specified data. 
 *)
-let check_type_edges cmdwithmatch graph env fnode1 fnode2 stbledges elm1 elm2 e =
-  match e with
+let check_type_edges cmdwithmatch graph env fnode1 fnode2 stbledges elm1 elm2 = function
   | EdgeData (Direct (var, dlabels, dprops)) ->
     iter_edges
       (Graph.find_all_edges graph elm1 elm2)
