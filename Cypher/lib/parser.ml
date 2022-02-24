@@ -1,7 +1,6 @@
 open Angstrom
 open Ast
 
-let ( <~> ) x xs = x >>= fun r -> xs >>= fun rs -> return (r :: rs)
 let parse_with p s = parse_string ~consume:Consume.All p s
 let debug = false
 let log s = if debug then Format.printf s else ()

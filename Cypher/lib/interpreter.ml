@@ -8,8 +8,6 @@ type value =
   | VNull of string
 [@@deriving show { with_path = false }]
 
-type propertyList = (string * value) list [@@deriving show { with_path = false }]
-
 let pp_value_ret fmt = function
   | VString s -> Format.fprintf fmt "%S\n" s
   | VInt n -> Format.fprintf fmt "%d\n" n
@@ -18,9 +16,8 @@ let pp_value_ret fmt = function
 ;;
 
 let pp_vproperties_ret fmt =
-  List.iter (fun prop ->
-      match prop with
-      | str, value -> Format.fprintf fmt "   \"%s\": %a " str pp_value_ret value)
+  List.iter (function str, value ->
+      Format.fprintf fmt "   \"%s\": %a " str pp_value_ret value)
 ;;
 
 let pp_type_ret fmt labels =
@@ -245,7 +242,7 @@ let rec interpret_rec_expr_where id expr var props =
       Result.ok
         (VBool
            (try
-              ignore (Str.search_forward (Str.regexp_string m) n 0);
+              let _ = Str.search_forward (Str.regexp_string m) n 0 in
               true
             with
            | Not_found -> false))
@@ -308,7 +305,7 @@ let interpret_expr_where id expr var props =
       | VString n, VString m ->
         Result.ok
           (try
-             ignore (Str.search_forward (Str.regexp_string m) n 0);
+             let _ = Str.search_forward (Str.regexp_string m) n 0 in
              true
            with
           | Not_found -> false)
@@ -402,7 +399,7 @@ let rec interpret_expr env expr =
                   @ [ AValue
                         (VBool
                            (try
-                              ignore (Str.search_forward (Str.regexp_string m) n 0);
+                              let _ = Str.search_forward (Str.regexp_string m) n 0 in
                               true
                             with
                            | Not_found -> false))
