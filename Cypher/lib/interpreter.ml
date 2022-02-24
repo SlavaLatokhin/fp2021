@@ -202,6 +202,17 @@ let rec interpret_rec_expr_where id expr var props =
   | EGetType _ ->
     Result.error (IncorrectWhere "The request needs to be modified. ()-[r: TYPE]-()")
   | EGetElm _ -> Result.error ElmNotValid
+  | Inop (expr, list) ->
+    let* expr = interpret_rec_expr_where id expr var props in
+    let* expr =
+      match expr with
+      | VString str -> Result.ok (CString str)
+      | VInt num -> Result.ok (CInt num)
+      | _ -> Result.error IncorrectType
+    in
+    (match List.mem expr list with
+    | true -> Result.ok (VBool true)
+    | false -> Result.ok (VBool false))
   | EUnop (op, expr) ->
     let* expr = interpret_rec_expr_where id expr var props in
     (match op, expr with
@@ -255,6 +266,17 @@ that WHERE will return boolean.
 *)
 let interpret_expr_where id expr var props =
   match expr with
+  | Inop (expr, list) ->
+    let* expr = interpret_rec_expr_where id expr var props in
+    let* expr =
+      match expr with
+      | VString str -> Result.ok (CString str)
+      | VInt num -> Result.ok (CInt num)
+      | _ -> Result.error IncorrectType
+    in
+    (match List.mem expr list with
+    | true -> Result.ok true
+    | false -> Result.ok false)
   | EUnop (op, expr) ->
     let* expr = interpret_rec_expr_where id expr var props in
     (match op, expr with
@@ -322,6 +344,22 @@ let rec interpret_expr env expr =
   | EGetType elm -> find_typeofrelat_env elm env
   | EGetId elm -> find_idofelm_env elm env
   | EGetElm elm -> find_elm_env elm env
+  | Inop (expr, list) ->
+    let* exprs = interpret_expr env expr in
+    List.fold_left
+      (fun acc expr ->
+        let* listabstvalue = acc in
+        let* expr =
+          match expr with
+          | AValue (VString expr) -> Result.ok (CString expr)
+          | AValue (VInt expr) -> Result.ok (CInt expr)
+          | _ -> Result.error IncorrectType
+        in
+        match List.mem expr list with
+        | true -> Result.ok (listabstvalue @ [ AValue (VBool true) ])
+        | false -> Result.ok (listabstvalue @ [ AValue (VBool false) ]))
+      (Result.ok [])
+      exprs
   | EUnop (op, expr) ->
     let* abstvalues = interpret_expr env expr in
     List.fold_left
@@ -422,9 +460,19 @@ let rec interpret_expr_for_ret = function
   | EUnop (op, expr) ->
     let* elm = interpret_expr_for_ret expr in
     (match op with
-    | Not -> Result.ok (String.concat "" [ "NOT"; elm ])
-    | IsNotNull -> Result.ok (String.concat "" [ elm; "IS NOT NULL" ])
-    | IsNull -> Result.ok (String.concat "" [ elm; "IS NULL" ]))
+    | Not -> Result.ok (String.concat "" [ " NOT "; elm ])
+    | IsNotNull -> Result.ok (String.concat "" [ elm; " IS NOT NULL " ])
+    | IsNull -> Result.ok (String.concat "" [ elm; " IS NULL " ]))
+  | Inop (expr, list) ->
+    let* expr = interpret_expr_for_ret expr in
+    List.fold_left
+      (fun acc elm ->
+        let* str = acc in
+        match elm with
+        | CInt num -> Result.ok (String.concat "" [ str; " "; Int.to_string num ])
+        | CString strng -> Result.ok (String.concat "" [ str; " "; strng ]))
+      (Result.ok (String.concat "" [ expr; " IN " ]))
+      list
   | EBinop (op, n, m) ->
     let* n = interpret_expr_for_ret n in
     let* m = interpret_expr_for_ret m in

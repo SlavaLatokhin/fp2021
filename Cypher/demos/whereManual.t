@@ -175,8 +175,21 @@ RETURN n.name, n.age
 6. Using existential subqueries in WHERE
 Запросы WHERE EXISTS 6.1-6.3 не поддерживаются.
 
-7. Lists
-Оператор IN [...] 7.1 не поддерживается.
+7.1. IN operator
+  $ ./whereManual.exe <<-"EOF"
+  > MATCH (a:Person)
+  > WHERE a.name IN ['Peter', 'Timothy'] 
+  > RETURN a.name, a.age ;
+  Was created 7 nodes
+  Was created 6 edges
+  -------------------------------
+  a.name
+  "Peter"
+  "Timothy"
+  -------------------------------
+  a.age
+  35
+  25
 
 8.1. Default to false if property is missing
   $ ./whereManual.exe <<-"EOF"

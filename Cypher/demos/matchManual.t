@@ -306,7 +306,41 @@ RETURN p
   
 
 6.3. Multiple nodes by id
-MATCH (n)
-WHERE id(n) IN [0, 3, 5]
-RETURN n
-Оператор IN не поддерживается.
+  $ ./matchManual.exe <<-"EOF"
+  > MATCH (n)
+  > WHERE id(n) IN [6, 3, 1]
+  > RETURN n;
+  Was created 7 nodes
+  Was created 7 edges
+  -------------------------------
+  n
+  {
+    "identity": 1,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "name": "Oliver Stone"
+     }
+  }
+  
+  {
+    "identity": 3,
+    "labels": [
+      "Person",
+    ],
+    "properties": {
+      "name": "Charlie Sheen"
+     }
+  }
+  
+  {
+    "identity": 6,
+    "labels": [
+      "Movie",
+    ],
+    "properties": {
+      "title": "Wall Street"
+     }
+  }
+  

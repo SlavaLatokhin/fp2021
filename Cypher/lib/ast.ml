@@ -28,6 +28,11 @@ type unop =
   | IsNull
 [@@deriving show { with_path = false }]
 
+type inlist =
+  | Int of const list
+  | String of const list
+[@@deriving show { with_path = false }]
+
 type expr =
   | EConst of const
   | EGetProp of string * string
@@ -35,6 +40,7 @@ type expr =
   | EGetId of string
   | EGetElm of string
   | EBinop of binop * expr * expr
+  | Inop of expr * const list
   | EUnop of unop * expr
 [@@deriving show { with_path = false }]
 

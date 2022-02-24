@@ -97,6 +97,18 @@ let pnotnull = pspacesstring "NOT" *> pspacesstring "NULL" >>| fun _ -> IsNotNul
 let pnull = pspacesstring "NULL" >>| fun _ -> IsNull
 let pegetelmorprop = choice [ pgetprop; pgetelm ]
 let pecondforstr = choice [ pstrtwith; pendwith; pcontains ]
+let pgetid = pspacesstring "id" *> pspaceschar '(' *> pid <* pspaceschar ')'
+let pegetid = pgetid >>| fun var -> EGetId var
+
+let pecondin =
+  choice [ pegetid; pegetelmorprop ]
+  >>= fun expr ->
+  pspacesstring "IN"
+  *> pspacesstring "["
+  *> sep_by (pspaceschar ',') (choice [ pcsring; pcsringsnglq; pcint ])
+  <* pspacesstring "]"
+  >>= fun list -> return (Inop (expr, list))
+;;
 
 let pecondnull =
   pgetprop
@@ -107,15 +119,14 @@ let pecondnull =
 
 let pgettype = pspacesstring "type" *> pspaceschar '(' *> pid <* pspaceschar ')'
 let pegettype = pgettype >>| fun var -> EGetType var
-let pgetid = pspacesstring "id" *> pspaceschar '(' *> pid <* pspaceschar ')'
-let pegetid = pgetid >>| fun var -> EGetId var
 
 let pexpr =
   fix (fun pexpr ->
       let penot = pspacesstring "NOT" *> pexpr >>| fun e -> EUnop (Not, e) in
       let firstlvl =
         choice
-          [ pegetid
+          [ pecondin
+          ; pegetid
           ; pspaceschar '(' *> pexpr <* pspaceschar ')'
           ; pecondforstr
           ; pecondnull
