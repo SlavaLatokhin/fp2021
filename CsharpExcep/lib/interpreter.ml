@@ -887,7 +887,7 @@ module Interpreter (M : MONADERROR) = struct
     eval_helper in_expr in_ctx
 
   and eval_post_operation ctx =
-    let rec eval_post_inc post_ctx = function
+    let rec eval_post_inc_dec post_ctx inc_v remove_f = function
       | [] -> return post_ctx
       | x :: xs -> (
         match find_opt_var post_ctx.variable_list x with
@@ -897,7 +897,7 @@ module Interpreter (M : MONADERROR) = struct
             >>= fun _ ->
             let change_value =
               match old_var.var_value with
-              | VInt v -> return (VInt (v + 1))
+              | VInt v -> return (VInt (v + inc_v))
               | _ -> error "Variable in post inc shoud be integer!" in
             change_value
             >>= fun value ->
@@ -906,32 +906,12 @@ module Interpreter (M : MONADERROR) = struct
                 var_value= value
               ; assignment_count= old_var.assignment_count + 1 } in
             return (replace_var post_ctx x var)
-            >>= fun new_ctx -> eval_post_inc (remove_key_post_inc new_ctx x) xs
-        ) in
-    let rec eval_post_dec post_ctx = function
-      | [] -> return post_ctx
-      | x :: xs -> (
-        match find_opt_var post_ctx.variable_list x with
-        | None -> error "Variable not found"
-        | Some old_var ->
-            check_const_assign_variable old_var
-            >>= fun _ ->
-            let change_value =
-              match old_var.var_value with
-              | VInt v -> return (VInt (v - 1))
-              | _ -> error "Variable in post inc shoud be integer!" in
-            change_value
-            >>= fun value ->
-            let var =
-              { old_var with
-                var_value= value
-              ; assignment_count= old_var.assignment_count + 1 } in
-            return (replace_var post_ctx x var)
-            >>= fun new_ctx -> eval_post_dec (remove_key_post_dec new_ctx x) xs
-        ) in
-    eval_post_inc ctx ctx.post_inc
+            >>= fun new_ctx ->
+            eval_post_inc_dec (remove_f new_ctx x) inc_v remove_f xs ) in
+    eval_post_inc_dec ctx 1 remove_key_post_inc ctx.post_inc
     >>= fun inc_ctx ->
-    eval_post_dec inc_ctx inc_ctx.post_dec >>= fun dec_ctx -> return dec_ctx
+    eval_post_inc_dec inc_ctx (-1) remove_key_post_dec inc_ctx.post_dec
+    >>= fun dec_ctx -> return dec_ctx
 
   and fill_var_list vl ctx args meth_args class_list =
     let update_var var_ctx arg = function
