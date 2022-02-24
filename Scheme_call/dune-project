@@ -1,0 +1,24 @@
+(lang dune 2.9)
+
+(cram enable)
+
+(name Scheme_call)
+
+(package
+ (name Scheme_call) ; FIXME and regenerate .opam file using 'dune build @install'
+ (synopsis "FIXME An interpreter for language")
+ (description
+  "FIXME. A longer description, for example, which are the most interesing features being supported, etc.")
+ (version 0.1)
+ (depends
+  dune
+  angstrom
+  (ppx_inline_test :with-test)
+  qcheck-core
+  ppx_expect
+  ppx_show
+  (odoc :with-doc)
+  (ocamlformat :build)
+  base
+  ; After adding dependencies to 'dune' files and the same dependecies here too
+  ))
