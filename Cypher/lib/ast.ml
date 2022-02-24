@@ -66,6 +66,10 @@ type ordercond =
   |Desc
 [@@deriving show { with_path = false }]
 
+(** 
+Order (expr; None) ~ Order (expr; Some(ASC))
+Order (expr; Some(DESC))
+*)
 type orderby =
   | Order of expr * ordercond option 
 [@@deriving show { with_path = false }]
