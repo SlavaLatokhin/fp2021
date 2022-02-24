@@ -615,36 +615,28 @@ module Interpreter (M : MONADERROR) = struct
             let check_catch_stat = function
               | StatementBlock _ -> return ()
               | _ -> error "Expected { } in catch block!" in
+            let eval_catch_stat catch_ctx catch_stat =
+              check_catch_stat catch_stat
+              >> eval_stat catch_stat
+                   { catch_ctx with
+                     runtime_signal= NoSignal
+                   ; visibility_level= catch_ctx.visibility_level + 1 }
+                   class_list
+              >>= fun catch_ctx ->
+              return
+                {catch_ctx with visibility_level= catch_ctx.visibility_level - 1}
+            in
             let eval_catch catch_ctx = function
               (* catch cases:
                  catch {}
                  catch (Exception) {}
               *)
-              | None, catch_stat ->
-                  check_catch_stat catch_stat
-                  >> eval_stat catch_stat
-                       { catch_ctx with
-                         runtime_signal= NoSignal
-                       ; visibility_level= catch_ctx.visibility_level + 1 }
-                       class_list
-                  >>= fun catch_ctx ->
-                  return
-                    { catch_ctx with
-                      visibility_level= catch_ctx.visibility_level - 1 }
+              | None, catch_stat -> eval_catch_stat catch_ctx catch_stat
               | Some (CsClass cl_name), catch_stat -> (
                 match catch_ctx.last_expr_result with
                 | VClass (ObjRef (thrown_name, _)) ->
                     if thrown_name = cl_name || cl_name = "Exception" then
-                      check_catch_stat catch_stat
-                      >> eval_stat catch_stat
-                           { catch_ctx with
-                             runtime_signal= NoSignal
-                           ; visibility_level= catch_ctx.visibility_level + 1 }
-                           class_list
-                      >>= fun catch_ctx ->
-                      return
-                        { catch_ctx with
-                          visibility_level= catch_ctx.visibility_level - 1 }
+                      eval_catch_stat catch_ctx catch_stat
                     else return catch_ctx
                 | _ -> error "Incorrect type of result" )
               | _ -> error "Incorrect catch statement" in
