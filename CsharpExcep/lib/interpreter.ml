@@ -672,73 +672,78 @@ module Interpreter (M : MONADERROR) = struct
 
   and eval_expr in_expr in_ctx class_list =
     let eval_helper e_expr ctx =
-      let eval_left_and_right ctx left right =
+      let eval_left_right left_e right_e eval_f =
         eval_post_operation ctx
         >>= fun ctx ->
-        eval_expr left ctx class_list
+        eval_expr left_e ctx class_list
         >>= fun left_ctx ->
-        eval_expr right left_ctx class_list
-        >>= fun right_ctx -> return (left_ctx, right_ctx) in
+        eval_expr right_e left_ctx class_list
+        >>= fun right_ctx ->
+        try
+          let ret_v =
+            eval_f left_ctx.last_expr_result right_ctx.last_expr_result in
+          return {right_ctx with last_expr_result= ret_v}
+        with Invalid_argument m -> error m in
       match e_expr with
-      | Plus (left, right) -> (
-          eval_left_and_right ctx left right
-          >>= fun (left_ctx, right_ctx) ->
-          match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
-          | VInt x, VInt y ->
-              return {right_ctx with last_expr_result= VInt (x + y)}
-          | VString x, VString y ->
-              return {right_ctx with last_expr_result= VString (x ^ y)}
-          | VInt x, VString y ->
-              return
-                {right_ctx with last_expr_result= VString (string_of_int x ^ y)}
-          | VString x, VInt y ->
-              return
-                {right_ctx with last_expr_result= VString (x ^ string_of_int y)}
-          | _, _ -> error "Incorrect argument types for adding" )
-      | Min (left, right) -> (
-          eval_left_and_right ctx left right
-          >>= fun (left_ctx, right_ctx) ->
-          match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
-          | VInt x, VInt y ->
-              return {right_ctx with last_expr_result= VInt (x - y)}
-          | _, _ -> error "Incorrect argument types for subtraction!" )
-      | Mul (left, right) -> (
-          eval_left_and_right ctx left right
-          >>= fun (left_ctx, right_ctx) ->
-          match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
-          | VInt x, VInt y ->
-              return {right_ctx with last_expr_result= VInt (x * y)}
-          | _, _ -> error "Incorrect argument types for multiplication!" )
-      | Div (left, right) -> (
-          eval_left_and_right ctx left right
-          >>= fun (left_ctx, right_ctx) ->
-          match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
-          | VInt _, VInt y when y = 0 -> error "Division by zero!"
-          | VInt x, VInt y ->
-              return {right_ctx with last_expr_result= VInt (x / y)}
-          | _, _ -> error "Incorrect argument types for division!" )
-      | Mod (left, right) -> (
-          eval_left_and_right ctx left right
-          >>= fun (left_ctx, right_ctx) ->
-          match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
-          | VInt _, VInt y when y = 0 -> error "Division by zero!"
-          | VInt x, VInt y ->
-              return {right_ctx with last_expr_result= VInt (x mod y)}
-          | _, _ -> error "Incorrect argument types for mod operator!" )
-      | And (left, right) -> (
-          eval_left_and_right ctx left right
-          >>= fun (left_ctx, right_ctx) ->
-          match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
-          | VBool x, VBool y ->
-              return {right_ctx with last_expr_result= VBool (x && y)}
-          | _, _ -> error "Incorrect types for logical and operator!" )
-      | Or (left, right) -> (
-          eval_left_and_right ctx left right
-          >>= fun (left_ctx, right_ctx) ->
-          match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
-          | VBool x, VBool y ->
-              return {right_ctx with last_expr_result= VBool (x || y)}
-          | _, _ -> error "Incorrect types for logical or operator!" )
+      | Plus (left, right) ->
+          eval_left_right left right (fun leftv rightv ->
+              match (leftv, rightv) with
+              | VInt x, VInt y -> VInt (x + y)
+              | VString x, VString y -> VString (x ^ y)
+              | VInt x, VString y -> VString (string_of_int x ^ y)
+              | VString x, VInt y -> VString (x ^ string_of_int y)
+              | _, _ ->
+                  raise (Invalid_argument "Incorrect argument types for adding") )
+      | Min (left, right) ->
+          eval_left_right left right (fun leftv rightv ->
+              match (leftv, rightv) with
+              | VInt x, VInt y -> VInt (x - y)
+              | _, _ ->
+                  raise
+                    (Invalid_argument
+                       "Incorrect argument types for subtraction!" ) )
+      | Mul (left, right) ->
+          eval_left_right left right (fun leftv rightv ->
+              match (leftv, rightv) with
+              | VInt x, VInt y -> VInt (x * y)
+              | _, _ ->
+                  raise
+                    (Invalid_argument
+                       "Incorrect argument types for multiplication!" ) )
+      | Div (left, right) ->
+          eval_left_right left right (fun leftv rightv ->
+              match (leftv, rightv) with
+              | VInt _, VInt y when y = 0 ->
+                  raise (Invalid_argument "Division by zero!")
+              | VInt x, VInt y -> VInt (x / y)
+              | _, _ ->
+                  raise
+                    (Invalid_argument "Incorrect argument types for division!") )
+      | Mod (left, right) ->
+          eval_left_right left right (fun leftv rightv ->
+              match (leftv, rightv) with
+              | VInt _, VInt y when y = 0 ->
+                  raise (Invalid_argument "Division by zero!")
+              | VInt x, VInt y -> VInt (x mod y)
+              | _, _ ->
+                  raise
+                    (Invalid_argument
+                       "Incorrect argument types for mod operator!" ) )
+      | And (left, right) ->
+          eval_left_right left right (fun leftv rightv ->
+              match (leftv, rightv) with
+              | VBool x, VBool y -> VBool (x && y)
+              | _, _ ->
+                  raise
+                    (Invalid_argument
+                       "Incorrect types for logical and operator!" ) )
+      | Or (left, right) ->
+          eval_left_right left right (fun leftv rightv ->
+              match (leftv, rightv) with
+              | VBool x, VBool y -> VBool (x || y)
+              | _, _ ->
+                  raise
+                    (Invalid_argument "Incorrect types for logical or operator!") )
       | Not not_expr -> (
           eval_post_operation ctx
           >>= fun ctx ->
@@ -747,38 +752,31 @@ module Interpreter (M : MONADERROR) = struct
           match new_ctx.last_expr_result with
           | VBool x -> return {new_ctx with last_expr_result= VBool (not x)}
           | _ -> error "Incorrect types for logical not operator!" )
-      | Less (left, right) -> (
-          eval_left_and_right ctx left right
-          >>= fun (left_ctx, right_ctx) ->
-          match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
-          | VInt x, VInt y ->
-              return {right_ctx with last_expr_result= VBool (x < y)}
-          | _ -> error "Incorrect type for comparison operator!" )
+      | Less (left, right) ->
+          eval_left_right left right (fun leftv rightv ->
+              match (leftv, rightv) with
+              | VInt x, VInt y -> VBool (x < y)
+              | _ ->
+                  raise
+                    (Invalid_argument "Incorrect type for comparison operator!") )
       | More (left, right) -> eval_expr (Less (right, left)) ctx class_list
       | LessOrEqual (left, right) ->
           eval_expr (Not (More (left, right))) ctx class_list
       | MoreOrEqual (left, right) ->
           eval_expr (Not (Less (left, right))) ctx class_list
-      | Equal (left, right) -> (
-          eval_left_and_right ctx left right
-          >>= fun (left_ctx, right_ctx) ->
-          match (left_ctx.last_expr_result, right_ctx.last_expr_result) with
-          | VInt x, VInt y ->
-              return {right_ctx with last_expr_result= VBool (x = y)}
-          | VBool x, VBool y ->
-              return {right_ctx with last_expr_result= VBool (x = y)}
-          | VVoid, VVoid -> return {right_ctx with last_expr_result= VBool true}
-          | VString x, VString y ->
-              return {right_ctx with last_expr_result= VBool (x = y)}
-          | VClass x, VClass y -> (
-            match (x, y) with
-            | ObjNull, ObjNull ->
-                return {right_ctx with last_expr_result= VBool true}
-            | ObjNull, _ | _, ObjNull ->
-                return {right_ctx with last_expr_result= VBool false}
-            | ObjRef (key1, _), ObjRef (key2, _) ->
-                return {right_ctx with last_expr_result= VBool (key1 = key2)} )
-          | _ -> error "Incorrect types for equality!" )
+      | Equal (left, right) ->
+          eval_left_right left right (fun leftv rightv ->
+              match (leftv, rightv) with
+              | VInt x, VInt y -> VBool (x = y)
+              | VBool x, VBool y -> VBool (x = y)
+              | VVoid, VVoid -> VBool true
+              | VString x, VString y -> VBool (x = y)
+              | VClass x, VClass y -> (
+                match (x, y) with
+                | ObjNull, ObjNull -> VBool true
+                | ObjNull, _ | _, ObjNull -> VBool false
+                | ObjRef (key1, _), ObjRef (key2, _) -> VBool (key1 = key2) )
+              | _ -> raise (Invalid_argument "Incorrect types for equality!") )
       | NotEqual (left, right) ->
           eval_expr (Not (Equal (left, right))) ctx class_list
       | ConstExpr value ->
