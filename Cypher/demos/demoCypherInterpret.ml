@@ -1,8 +1,7 @@
 open Cypher_lib.Parser
 open Cypher_lib.Interpreter
 
-let () =
-  let str = Stdio.In_channel.input_all Caml.stdin in
+let strt_intrp str =
   let parsed = parse_with pcmdssep str in
   let open Caml.Format in
   match parsed with

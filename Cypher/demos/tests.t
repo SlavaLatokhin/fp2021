@@ -1,4 +1,4 @@
-  $ ./demoCypherInterpret.exe <<-"EOF"
+  $ ./tests.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
   > (kate :Person  {name: "Kate", age: 20}),
   > (jessica:Person{name:"Jessica", age: 5}),
@@ -46,7 +46,7 @@
   false
   true
   true
-  $ ./demoCypherInterpret.exe <<-"EOF"
+  $ ./tests.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
   > (albina :Person  {name: "Albina", age: 17}),
   > (alisa :Person  {name: "Alisa", age: 14}),
@@ -83,7 +83,7 @@
   z.name CONTAINS i
   true
   true
-  $ ./demoCypherInterpret.exe <<-"EOF"
+  $ ./tests.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
   > (tom :Person  {name: "Tom", age: 15}), 
   > (kate :Person  {name: "Kate", age: 20}),
@@ -162,7 +162,7 @@
      }
   }
   
-  $ ./demoCypherInterpret.exe <<-"EOF"
+  $ ./tests.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
   > (tom :Person :Student {name: "Tom", age: 15}), 
   > (kate :Person  {name: "Kate", age: 20});
@@ -198,7 +198,7 @@
      }
   }
   
-  $ ./demoCypherInterpret.exe <<-"EOF"
+  $ ./tests.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
   > (tom :Person :Student {name: "Tom", age: 15}),
   > (ann :Person {name: "Ann", age: 25}),
@@ -296,7 +296,7 @@
   true
   true
   false
-  $ ./demoCypherInterpret.exe <<-"EOF"
+  $ ./tests.exe <<-"EOF"
   > CREATE (pam :Person {name: "Pam", age: 40}),
   > (tom :Person :Student {name: "Tom", age: 15}),
   > (ann :Person {name: "Ann", age: 25}),
@@ -340,7 +340,7 @@
   type(r)
   "PARENT"
   "PARENT"
-  $ ./demoCypherInterpret.exe <<-"EOF"
+  $ ./tests.exe <<-"EOF"
   > CREATE (:City{name:"Saint Petersburg"}),(:City{name:"Moscow"});
   > MATCH (c1:City{name:"Saint Petersburg"}), (c2:City{name:"Moscow"}) 
   > CREATE (u:User{name:"Vasya", phone:762042})-[:LIVES_IN]->(c1), (u)-[:BORN_IN]->(c2);
@@ -410,7 +410,7 @@
   type(r)
   "BORN_IN"
   "LIVES_IN"
-  $ ./demoCypherInterpret.exe <<-"EOF"
+  $ ./tests.exe <<-"EOF"
   > create (a:A),(b:B),(c:C),(d:D),(e:E), (a)-[:ab]->(b),(c)-[:cb]->(b), (b)-[:bd]->(d), (b)-[:be]->(e);
   > match (n)-->(:B) return n;
   Was created 5 nodes
