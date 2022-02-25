@@ -858,9 +858,8 @@ let sep_env varelm env =
   | false -> Result.error (NotBound "Undefined variable or nothing was found.")
 ;;
 
-let sort_props cond listorder field =
-  List.stable_sort
-    (fun elm1 elm2 ->
+let sort_props cond field =
+  List.stable_sort (fun elm1 elm2 ->
       match elm1, elm2 with
       | (_, ((_, _, props1), (_, _))), (_, ((_, _, props2), (_, _))) ->
         (match List.assoc_opt field props1, List.assoc_opt field props2 with
@@ -868,15 +867,12 @@ let sort_props cond listorder field =
         | Some _, None -> cond
         | None, Some _ -> cond
         | None, None -> 0))
-    listorder
 ;;
 
-let sort_id cond listorder =
-  List.stable_sort
-    (fun elm1 elm2 ->
+let sort_id cond =
+  List.stable_sort (fun elm1 elm2 ->
       match elm1, elm2 with
       | (_, ((id1, _, _), (_, _))), (_, ((id2, _, _), (_, _))) -> cond * compare id1 id2)
-    listorder
 ;;
 
 let sort_env expr env cond =
@@ -889,7 +885,7 @@ let sort_env expr env cond =
   in
   let* newlistorder =
     match expr with
-    | EGetProp (_, field) -> Result.ok (sort_props cond listorder field)
+    | EGetProp (_, field) -> Result.ok (sort_props cond field listorder)
     | EGetElm _ -> Result.ok (sort_id cond listorder)
     | EGetId _ -> Result.ok (sort_id cond listorder)
     | _ -> Result.error IncorrectType
