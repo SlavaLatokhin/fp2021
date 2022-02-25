@@ -7,8 +7,14 @@
 (library
  (name csharp_lib)
  (public_name CsharpExcep.Lib)
- (modules Ast Parser Interpreter Interpret_classes Value_types)
- (libraries opal stdio ppx_show.runtime)
+ (modules
+  Ast
+  Parser
+  Interpreter
+  Interpret_classes
+  Value_types
+  Test_interpreter)
+ (libraries opal stdio)
  (inline_tests)
  (preprocess
-  (pps ppx_expect ppx_show ppx_deriving.eq)))
+  (pps ppx_expect ppx_deriving.show)))

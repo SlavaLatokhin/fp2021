@@ -3,14 +3,14 @@
  (modules demoOnlyPrint)
  (libraries CsharpExcep.Lib)
  (preprocess
-  (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
+  (pps ppx_expect ppx_deriving.show)))
 
 (executable
  (name demoShowContext)
  (modules demoShowContext)
  (libraries CsharpExcep.Lib)
  (preprocess
-  (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
+  (pps ppx_expect ppx_deriving.show)))
 
 (cram
- (deps ./demoOnlyPrint.exe ./demoShowContext.exe ../REPL.exe))
+ (deps ./demoOnlyPrint.exe ./demoShowContext.exe))

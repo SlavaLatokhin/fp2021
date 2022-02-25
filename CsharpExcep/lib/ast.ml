@@ -13,8 +13,10 @@ type values =
   | VClass of object_references
 [@@deriving show {with_path= false}]
 
-and object_references = ObjNull | ObjRef of string * string option
-(*class key and parent key*)
+and object_references =
+  | ObjNull
+  | ObjRef of string * string option (*class key and parent key*)
+[@@deriving show {with_path= false}]
 
 type expr =
   | Plus of expr * expr

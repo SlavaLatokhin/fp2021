@@ -372,12 +372,12 @@ module Tests = struct
   let get_dec =
     apply_parser parse_class
       {|
-               public class Exception
+               public class AnyException
                {
-                 public string message;
-                 public string ToString()
+                 public int num;
+                 public int TextNum()
                  {
-                     return message;
+                     return num;
                  }
                }
            |}
@@ -387,14 +387,13 @@ module Tests = struct
     = Some
         (Class
            ( [Public]
-           , "Exception"
+           , "AnyException"
            , None
-           , [ ([Public], VariableField (String, [("message", None)]))
+           , [ ([Public], VariableField (Int, [("num", None)]))
              ; ( [Public]
                , Method
-                   ( String
-                   , "ToString"
+                   ( Int
+                   , "TextNum"
                    , []
-                   , StatementBlock [Return (Some (IdentVar "message"))] ) ) ]
-           ) )
+                   , StatementBlock [Return (Some (IdentVar "num"))] ) ) ] ) )
 end

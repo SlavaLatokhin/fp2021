@@ -6,11 +6,5 @@
   (flags
    (:standard -warn-error -A -w -58))))
 
-(executable
- (name REPL)
- (public_name REPL)
- (modules REPL)
- (libraries CsharpExcep.Lib stdio))
-
 (cram
  (deps ./REPL.exe %{bin:REPL}))
