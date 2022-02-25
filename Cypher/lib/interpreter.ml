@@ -858,13 +858,6 @@ let sep_env varelm env =
   | false -> Result.error (NotBound "Undefined variable or nothing was found.")
 ;;
 
-(**
-"Failwith" in this function is written to get rid of the warning. 
-The code won't get here. In the case of "IncorrectType", 
-the program will stop using "Result.error". 
-But this will not happen either, since only 3 types described 
-below are supported at the parsing stage.
-*)
 let sort_props cond listorder field =
   List.stable_sort
     (fun elm1 elm2 ->
