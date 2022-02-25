@@ -1,0 +1,17 @@
+(executable
+ (name demo_launcher)
+ (modules demo_launcher)
+ (public_name demo_launcher)
+ (libraries ruby_lib stdio)
+ (preprocess
+  (pps ppx_blob)))
+
+(cram
+ (deps
+  ./demo_launcher.exe
+  ./rbs/anonymous.rb
+  ./rbs/closure.rb
+  ./rbs/method_missing.rb
+  ./rbs/multiple_assignment.rb
+  ./rbs/object.rb
+  ./rbs/recursion.rb))

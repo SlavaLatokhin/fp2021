@@ -1,4 +1,4 @@
-(lang dune 2.9.1)
+(lang dune 2.9)
 
 (generate_opam_files true)
 
@@ -20,10 +20,10 @@
  (description "A 2021-2022 functional programming course homework.")
  (version 0.01)
  (depends
-  base
   dune
   angstrom
   ppx_expect
+  ppx_blob
   ppx_deriving
   (odoc :with-doc)
   (ocamlformat :build)

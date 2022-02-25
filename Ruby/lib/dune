@@ -1,8 +1,8 @@
 (library
  (name ruby_lib)
  (public_name Ruby.Lib)
- (modules Ast Parser Tests)
- (libraries angstrom base)
+ (modules Ast Parser Interpreter Tests)
+ (libraries angstrom)
  (preprocess
   (pps ppx_expect ppx_deriving.show))
  (inline_tests))
