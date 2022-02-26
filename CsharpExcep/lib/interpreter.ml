@@ -109,123 +109,137 @@ module Interpreter (M : MONADERROR) = struct
     match cur_expr with
     | Plus (left, right) -> (
         check_expr_type left ctx class_list
-        >>= fun left_type ->
-        match left_type with
-        | Int -> (
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | Int -> return Int
-            | String -> return String
-            | _ ->
-                error
-                  "Incorrect type: the right side of the expression should be \
-                   Int or String!" )
-        | String -> (
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | Int | String -> return String
-            | _ ->
-                error
-                  "Incorrect type: the right side of the expression should be \
-                   Int or String!" )
-        | _ ->
-            error
-              "Incorrect type: the expression Plus could only be with Int or \
-               String type!" )
+        >>= function
+        | left_type -> (
+          match left_type with
+          | Int -> (
+              check_expr_type right ctx class_list
+              >>= function
+              | right_type -> (
+                match right_type with
+                | Int -> return Int
+                | String -> return String
+                | _ ->
+                    error
+                      "Incorrect type: the right side of the expression should \
+                       be Int or String!" ) )
+          | String -> (
+              check_expr_type right ctx class_list
+              >>= function
+              | right_type -> (
+                match right_type with
+                | Int | String -> return String
+                | _ ->
+                    error
+                      "Incorrect type: the right side of the expression should \
+                       be Int or String!" ) )
+          | _ ->
+              error
+                "Incorrect type: the expression Plus could only be with Int or \
+                 String type!" ) )
     | Min (left, right)
      |Div (left, right)
      |Mod (left, right)
      |Mul (left, right) -> (
         check_expr_type left ctx class_list
-        >>= fun left_type ->
-        match left_type with
-        | Int -> (
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | Int -> return Int
-            | _ -> error "Incorrect type: the type should be Int!" )
-        | _ -> error "Incorrect type: the type should be Int!" )
+        >>= function
+        | left_type -> (
+          match left_type with
+          | Int -> (
+              check_expr_type right ctx class_list
+              >>= fun right_type ->
+              match right_type with
+              | Int -> return Int
+              | _ -> error "Incorrect type: the type should be Int!" )
+          | _ -> error "Incorrect type: the type should be Int!" ) )
     | PostDec value | PostInc value | PrefDec value | PrefInc value -> (
         check_expr_type value ctx class_list
-        >>= fun value_type ->
-        match value_type with
-        | Int -> return Int
-        | _ -> error "Incorrect type: the type should be Int!" )
+        >>= function
+        | value_type -> (
+          match value_type with
+          | Int -> return Int
+          | _ -> error "Incorrect type: the type should be Int!" ) )
     | And (left, right) | Or (left, right) -> (
         check_expr_type left ctx class_list
-        >>= fun left_type ->
-        match left_type with
-        | Bool -> (
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | Bool -> return Bool
-            | _ -> error "Incorrect type: the type should be Bool!" )
-        | _ -> error "Incorrect type: the type should be Bool!" )
+        >>= function
+        | left_type -> (
+          match left_type with
+          | Bool -> (
+              check_expr_type right ctx class_list
+              >>= fun right_type ->
+              match right_type with
+              | Bool -> return Bool
+              | _ -> error "Incorrect type: the type should be Bool!" )
+          | _ -> error "Incorrect type: the type should be Bool!" ) )
     | Not value -> (
         check_expr_type value ctx class_list
-        >>= fun value_type ->
-        match value_type with
-        | Bool -> return Bool
-        | _ -> error "Incorrect type: the type should be Bool!" )
+        >>= function
+        | value_type -> (
+          match value_type with
+          | Bool -> return Bool
+          | _ -> error "Incorrect type: the type should be Bool!" ) )
     | Less (left, right)
      |More (left, right)
      |LessOrEqual (left, right)
      |MoreOrEqual (left, right) -> (
         check_expr_type left ctx class_list
-        >>= fun left_type ->
-        match left_type with
-        | Int -> (
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | Int -> return Bool
-            | _ -> error "Incorrect type: the type should be Int!" )
-        | _ -> error "Incorrect type: the type should be Int!" )
+        >>= function
+        | left_type -> (
+          match left_type with
+          | Int -> (
+              check_expr_type right ctx class_list
+              >>= function
+              | right_type -> (
+                match right_type with
+                | Int -> return Bool
+                | _ -> error "Incorrect type: the type should be Int!" ) )
+          | _ -> error "Incorrect type: the type should be Int!" ) )
     | Equal (left, right) | NotEqual (left, right) -> (
         check_expr_type left ctx class_list
-        >>= fun left_type ->
-        match left_type with
-        | Int -> (
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | Int -> return Bool
-            | _ ->
-                error
-                  "Incorrect type: the right side of the expression should be \
-                   Int!" )
-        | String -> (
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | String -> return Bool
-            | _ ->
-                error
-                  "Incorrect type: the right side of the expression should be \
-                   String!" )
-        | Bool -> (
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | Bool -> return Bool
-            | _ ->
-                error
-                  "Incorrect type: the right side of the expression should be \
-                   Bool!" )
-        | CsClass _ -> (
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | CsClass _ -> return Bool
-            | _ -> error "Incorrect class type!" )
-        | _ ->
-            error
-              "Incorrect type: the type should be Int, String, bool or CSharp \
-               class!" )
+        >>= function
+        | left_type -> (
+          match left_type with
+          | Int -> (
+              check_expr_type right ctx class_list
+              >>= function
+              | right_type -> (
+                match right_type with
+                | Int -> return Bool
+                | _ ->
+                    error
+                      "Incorrect type: the right side of the expression should \
+                       be Int!" ) )
+          | String -> (
+              check_expr_type right ctx class_list
+              >>= function
+              | right_type -> (
+                match right_type with
+                | String -> return Bool
+                | _ ->
+                    error
+                      "Incorrect type: the right side of the expression should \
+                       be String!" ) )
+          | Bool -> (
+              check_expr_type right ctx class_list
+              >>= function
+              | right_type -> (
+                match right_type with
+                | Bool -> return Bool
+                | _ ->
+                    error
+                      "Incorrect type: the right side of the expression should \
+                       be Bool!" ) )
+          | CsClass _ -> (
+              check_expr_type right ctx class_list
+              >>= function
+              | right_type -> (
+                match right_type with
+                | CsClass _ -> return Bool
+                | _ -> error "Incorrect class type!" ) )
+          | _ ->
+              error
+                "Incorrect type: the type should be Int, String, bool or \
+                 CSharp class!" ) )
     | Null -> return (CsClass "null")
     | CallMethod (method_key, _) ->
         find_main_class class_list
@@ -256,11 +270,12 @@ module Interpreter (M : MONADERROR) = struct
         | Void -> error "incorrect type: cannot assign to void"
         | CsClass left_key -> (
             check_expr_type right ctx class_list
-            >>= fun right_type ->
-            match right_type with
-            | CsClass "null" -> return (CsClass left_key)
-            | CsClass right_key -> return (CsClass right_key)
-            | _ -> error "Incorrect type assignment!" )
+            >>= function
+            | right_type -> (
+              match right_type with
+              | CsClass "null" -> return (CsClass left_key)
+              | CsClass right_key -> return (CsClass right_key)
+              | _ -> error "Incorrect type assignment!" ) )
         | _ ->
             check_expr_type right ctx class_list
             >>= fun right_type ->
