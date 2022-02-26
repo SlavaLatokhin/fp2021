@@ -107,139 +107,141 @@ module Interpreter (M : MONADERROR) = struct
 
   let rec check_expr_type cur_expr ctx class_list =
     match cur_expr with
-    | Plus (left, right) -> (
+    | Plus (left, right) ->
         check_expr_type left ctx class_list
-        >>= function
-        | left_type -> (
-          match left_type with
-          | Int -> (
+        >>= fun left_type ->
+        let pm_left = function
+          | Int ->
               check_expr_type right ctx class_list
-              >>= function
-              | right_type -> (
-                match right_type with
+              >>= fun right_type ->
+              let pm_right = function
                 | Int -> return Int
                 | String -> return String
                 | _ ->
                     error
                       "Incorrect type: the right side of the expression should \
-                       be Int or String!" ) )
-          | String -> (
+                       be Int or String!" in
+              pm_right right_type
+          | String ->
               check_expr_type right ctx class_list
-              >>= function
-              | right_type -> (
-                match right_type with
+              >>= fun right_type ->
+              let pm_right = function
                 | Int | String -> return String
                 | _ ->
                     error
                       "Incorrect type: the right side of the expression should \
-                       be Int or String!" ) )
+                       be Int or String!" in
+              pm_right right_type
           | _ ->
               error
                 "Incorrect type: the expression Plus could only be with Int or \
-                 String type!" ) )
+                 String type!" in
+        pm_left left_type
     | Min (left, right)
      |Div (left, right)
      |Mod (left, right)
-     |Mul (left, right) -> (
+     |Mul (left, right) ->
         check_expr_type left ctx class_list
-        >>= function
-        | left_type -> (
-          match left_type with
-          | Int -> (
+        >>= fun left_type ->
+        let pm_left = function
+          | Int ->
               check_expr_type right ctx class_list
               >>= fun right_type ->
-              match right_type with
-              | Int -> return Int
-              | _ -> error "Incorrect type: the type should be Int!" )
-          | _ -> error "Incorrect type: the type should be Int!" ) )
-    | PostDec value | PostInc value | PrefDec value | PrefInc value -> (
+              let pm_right = function
+                | Int -> return Int
+                | _ -> error "Incorrect type: the type should be Int!" in
+              pm_right right_type
+          | _ -> error "Incorrect type: the type should be Int!" in
+        pm_left left_type
+    | PostDec value | PostInc value | PrefDec value | PrefInc value ->
         check_expr_type value ctx class_list
-        >>= function
-        | value_type -> (
-          match value_type with
+        >>= fun value_type ->
+        let pm = function
           | Int -> return Int
-          | _ -> error "Incorrect type: the type should be Int!" ) )
-    | And (left, right) | Or (left, right) -> (
+          | _ -> error "Incorrect type: the type should be Int!" in
+        pm value_type
+    | And (left, right) | Or (left, right) ->
         check_expr_type left ctx class_list
-        >>= function
-        | left_type -> (
-          match left_type with
-          | Bool -> (
+        >>= fun left_type ->
+        let pm_left = function
+          | Bool ->
               check_expr_type right ctx class_list
               >>= fun right_type ->
-              match right_type with
-              | Bool -> return Bool
-              | _ -> error "Incorrect type: the type should be Bool!" )
-          | _ -> error "Incorrect type: the type should be Bool!" ) )
-    | Not value -> (
+              let pm_right = function
+                | Bool -> return Bool
+                | _ -> error "Incorrect type: the type should be Bool!" in
+              pm_right right_type
+          | _ -> error "Incorrect type: the type should be Bool!" in
+        pm_left left_type
+    | Not value ->
         check_expr_type value ctx class_list
-        >>= function
-        | value_type -> (
-          match value_type with
+        >>= fun value_type ->
+        let pm = function
           | Bool -> return Bool
-          | _ -> error "Incorrect type: the type should be Bool!" ) )
+          | _ -> error "Incorrect type: the type should be Bool!" in
+        pm value_type
     | Less (left, right)
      |More (left, right)
      |LessOrEqual (left, right)
-     |MoreOrEqual (left, right) -> (
+     |MoreOrEqual (left, right) ->
         check_expr_type left ctx class_list
-        >>= function
-        | left_type -> (
-          match left_type with
-          | Int -> (
+        >>= fun left_type ->
+        let pm_left = function
+          | Int ->
               check_expr_type right ctx class_list
-              >>= function
-              | right_type -> (
-                match right_type with
+              >>= fun right_type ->
+              let pm_right = function
                 | Int -> return Bool
-                | _ -> error "Incorrect type: the type should be Int!" ) )
-          | _ -> error "Incorrect type: the type should be Int!" ) )
-    | Equal (left, right) | NotEqual (left, right) -> (
+                | _ -> error "Incorrect type: the type should be Int!" in
+              pm_right right_type
+          | _ -> error "Incorrect type: the type should be Int!" in
+        pm_left left_type
+    | Equal (left, right) | NotEqual (left, right) ->
         check_expr_type left ctx class_list
-        >>= function
-        | left_type -> (
-          match left_type with
-          | Int -> (
+        >>= fun left_type ->
+        let pm_left = function
+          | Int ->
               check_expr_type right ctx class_list
-              >>= function
-              | right_type -> (
-                match right_type with
+              >>= fun right_type ->
+              let pm_right = function
                 | Int -> return Bool
                 | _ ->
                     error
                       "Incorrect type: the right side of the expression should \
-                       be Int!" ) )
-          | String -> (
+                       be Int!" in
+              pm_right right_type
+          | String ->
               check_expr_type right ctx class_list
-              >>= function
-              | right_type -> (
-                match right_type with
+              >>= fun right_type ->
+              let pm_right = function
                 | String -> return Bool
                 | _ ->
                     error
                       "Incorrect type: the right side of the expression should \
-                       be String!" ) )
-          | Bool -> (
+                       be String!" in
+              pm_right right_type
+          | Bool ->
               check_expr_type right ctx class_list
-              >>= function
-              | right_type -> (
-                match right_type with
+              >>= fun right_type ->
+              let pm_right = function
                 | Bool -> return Bool
                 | _ ->
                     error
                       "Incorrect type: the right side of the expression should \
-                       be Bool!" ) )
-          | CsClass _ -> (
+                       be Bool!" in
+              pm_right right_type
+          | CsClass _ ->
               check_expr_type right ctx class_list
-              >>= function
-              | right_type -> (
-                match right_type with
+              >>= fun right_type ->
+              let pm_right = function
                 | CsClass _ -> return Bool
-                | _ -> error "Incorrect class type!" ) )
+                | _ -> error "Incorrect class type!" in
+              pm_right right_type
           | _ ->
               error
                 "Incorrect type: the type should be Int, String, bool or \
-                 CSharp class!" ) )
+                 CSharp class!" in
+        pm_left left_type
     | Null -> return (CsClass "null")
     | CallMethod (method_key, _) ->
         find_main_class class_list
@@ -263,24 +265,25 @@ module Interpreter (M : MONADERROR) = struct
       | VClass ObjNull -> return (CsClass "null")
       | VClass (ObjRef (class_key, _)) -> return (CsClass class_key)
       | _ -> error "Incorrect const expression type!" )
-    | Assign (left, right) -> (
+    | Assign (left, right) ->
         check_expr_type left ctx class_list
         >>= fun left_type ->
-        match left_type with
-        | Void -> error "incorrect type: cannot assign to void"
-        | CsClass left_key -> (
-            check_expr_type right ctx class_list
-            >>= function
-            | right_type -> (
-              match right_type with
-              | CsClass "null" -> return (CsClass left_key)
-              | CsClass right_key -> return (CsClass right_key)
-              | _ -> error "Incorrect type assignment!" ) )
-        | _ ->
-            check_expr_type right ctx class_list
-            >>= fun right_type ->
-            if left_type = right_type then return right_type
-            else error "Incorrect type assignment!" )
+        let pm_left = function
+          | Void -> error "incorrect type: cannot assign to void"
+          | CsClass left_key ->
+              check_expr_type right ctx class_list
+              >>= fun right_type ->
+              let pm_right = function
+                | CsClass "null" -> return (CsClass left_key)
+                | CsClass right_key -> return (CsClass right_key)
+                | _ -> error "Incorrect type assignment!" in
+              pm_right right_type
+          | _ ->
+              check_expr_type right ctx class_list
+              >>= fun right_type ->
+              if left_type = right_type then return right_type
+              else error "Incorrect type assignment!" in
+        pm_left left_type
 
   let expr_in_stat = function
     | PostDec _ | PostInc _ | PrefDec _ | PrefInc _
