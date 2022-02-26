@@ -577,16 +577,19 @@ module Interpreter (M : MONADERROR) = struct
               return {t_ctx with visibility_level= t_ctx.visibility_level - 1}
           | _ -> error "Expected { } in try block!" in
         let eval_finally finally_ctx =
+          let eval_finally_stat stat class_list =
+            eval_stat stat
+              { finally_ctx with
+                runtime_signal= NoSignal
+              ; visibility_level= finally_ctx.visibility_level + 1 }
+              class_list
+            >>= fun f_ctx -> return f_ctx in
           match finally_stat_opt with
           | None -> return finally_ctx
           | Some (StatementBlock _ as finally_stat)
             when finally_ctx.runtime_signal = WasReturn ->
               let return_value = finally_ctx.last_expr_result in
-              eval_stat finally_stat
-                { finally_ctx with
-                  runtime_signal= NoSignal
-                ; visibility_level= finally_ctx.visibility_level + 1 }
-                class_list
+              eval_finally_stat finally_stat class_list
               >>= fun f_ctx ->
               return
                 { f_ctx with
@@ -597,11 +600,7 @@ module Interpreter (M : MONADERROR) = struct
               (*It is important to save the signal so that finally is executed in
                 any case, even when catches fail*)
               let saved_signal = finally_ctx.runtime_signal in
-              eval_stat finally_stat
-                { finally_ctx with
-                  runtime_signal= NoSignal
-                ; visibility_level= finally_ctx.visibility_level + 1 }
-                class_list
+              eval_finally_stat finally_stat class_list
               >>= fun f_ctx ->
               return
                 { f_ctx with
