@@ -2,8 +2,7 @@ open Parser
 open Interpret_classes.Interpret_classes (Interpret_classes.Result)
 open Interpreter.Interpreter (Interpret_classes.Result)
 
-let print_ctx_res res_context tf =
-  match tf with
+let print_ctx_res res_context = function
   | true -> print_endline (show_context res_context ^ "\n")
   | false -> print_endline ""
 

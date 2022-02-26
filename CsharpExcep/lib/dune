@@ -17,4 +17,4 @@
  (libraries opal stdio)
  (inline_tests)
  (preprocess
-  (pps ppx_expect ppx_deriving.show)))
+  (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))
