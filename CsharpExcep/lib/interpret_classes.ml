@@ -27,7 +27,14 @@ module Interpret_classes (M : MONADERROR) = struct
   open M
   open Value_types
 
-  let system_exception_init class_list =
+  let rec monadic_list_iter action list ret =
+    match list with
+    | [] -> return ret
+    | x :: xs -> action x >> monadic_list_iter action xs ret
+
+  let system_exception_init class_map =
+    let field_map = KeyMap.empty in
+    let method_map = KeyMap.empty in
     let body = StatementBlock [Return (Some (IdentVar "message"))] in
     let method_t : method_t =
       {method_type= String; method_key= "ToString"; args= []; body} in
@@ -47,92 +54,97 @@ module Interpret_classes (M : MONADERROR) = struct
                 , []
                 , StatementBlock [Return (Some (IdentVar "message"))] ) ) ] )
     in
-    let class_t =
-      { class_key= "Exception"
-      ; field_list= []
-      ; method_list= []
-      ; parent_key= None
-      ; dec_class } in
-    return (add_method class_t method_t)
-    >>= fun class_t ->
-    return (add_field class_t field_t)
-    >>= fun class_t -> return (class_t :: class_list)
+    let field_map = KeyMap.add "message" field_t field_map in
+    let method_map = KeyMap.add "ToString" method_t method_map in
+    let class_map =
+      KeyMap.add "Exception"
+        { class_key= "Exception"
+        ; field_map
+        ; method_map
+        ; parent_key= None
+        ; dec_class }
+        class_map in
+    return class_map
 
-  let add_classes class_list_ast class_list =
-    let add_class_in_list cl_list adding_class =
+  let add_classes class_list_ast class_map =
+    let add_class_in_map cl_map adding_class =
       match adding_class with
       | Class (_, class_key, parent, fields) -> (
-          (* Function of adding a class element to the corresponding list *)
-          let add_class_elem field_elem field_list method_list =
+          (* Function of adding a class element to the corresponding map *)
+          let add_class_elem field_elem field_map method_map =
             match field_elem with
             | mod_list, VariableField (field_type, arg_list) ->
-                let rec helper_add_var list field_list method_list =
+                let rec helper_add_var list field_map method_map =
                   match list with
-                  | [] -> return (field_list, method_list)
+                  | [] -> return (field_map, method_map)
                   | (field_key, sub_tree) :: ps ->
                       let is_const = List.mem Const mod_list in
-                      ( match find_opt_field field_list field_key with
+                      ( match KeyMap.find_opt field_key field_map with
                       | None ->
-                          return
-                            ( {field_type; field_key; is_const; sub_tree}
-                              :: field_list
-                            , method_list )
+                          let field_map =
+                            KeyMap.add field_key
+                              {field_type; field_key; is_const; sub_tree}
+                              field_map in
+                          return (field_map, method_map)
                       | _ ->
                           error
                             (String.concat ""
                                [ "The field with this key: "; field_key
                                ; " already exists" ] ) )
-                      >>= fun (field_l, method_l) ->
-                      helper_add_var ps field_l method_l in
-                helper_add_var arg_list field_list method_list
+                      >>= fun (field_m, method_m) ->
+                      helper_add_var ps field_m method_m in
+                helper_add_var arg_list field_map method_map
             | _, Method (method_type, method_key, args, body) -> (
-              match find_opt_method method_list method_key with
+              match KeyMap.find_opt method_key method_map with
               | None ->
-                  return
-                    ( field_list
-                    , {method_type; method_key; args; body} :: method_list )
+                  let method_map =
+                    KeyMap.add method_key
+                      {method_type; method_key; args; body}
+                      method_map in
+                  return (field_map, method_map)
               | _ ->
                   error
                     (String.concat ""
                        [ "The method with this key: "; method_key
                        ; " already exists" ] ) ) in
-          let rec iter_fields fields field_list method_list =
+          let rec iter_fields fields field_map method_map =
             match fields with
-            | [] -> return (field_list, method_list)
+            | [] -> return (field_map, method_map)
             | x :: xs ->
-                add_class_elem x field_list method_list
-                >>= fun (field_l, method_l) -> iter_fields xs field_l method_l
+                add_class_elem x field_map method_map
+                >>= fun (field_m, method_m) -> iter_fields xs field_m method_m
           in
-          iter_fields fields [] []
-          >>= fun (field_list, method_list) ->
+          iter_fields fields KeyMap.empty KeyMap.empty
+          >>= fun (field_map, method_map) ->
           let parent_key = parent in
-          match find_opt_class cl_list class_key with
+          match KeyMap.find_opt class_key cl_map with
           | None ->
               let class_t =
                 { class_key
-                ; field_list
-                ; method_list
+                ; field_map
+                ; method_map
                 ; parent_key
                 ; dec_class= adding_class } in
-              return (class_t :: cl_list)
+              let cl_map = KeyMap.add class_key class_t cl_map in
+              return cl_map
           | _ ->
               error
                 (String.concat ""
                    ["The class with this key: "; class_key; " already exists"] )
           ) in
-    let rec iter_classes class_list_ast class_list =
+    let rec iter_classes class_list_ast class_map =
       match class_list_ast with
-      | [] -> return class_list
+      | [] -> return class_map
       | x :: xs ->
-          add_class_in_list class_list x
-          >>= fun class_l -> iter_classes xs class_l in
-    iter_classes class_list_ast class_list >>= fun class_l -> return class_l
+          add_class_in_map class_map x
+          >>= fun class_m -> iter_classes xs class_m in
+    iter_classes class_list_ast class_map >>= fun class_m -> return class_m
 
-  let interpret_classes class_list_ast class_list =
+  let interpret_classes class_list_ast class_map =
     match class_list_ast with
     | [] -> error "No classes found, incorrect syntax or empty file"
     | _ ->
-        system_exception_init class_list
-        >>= fun class_list_with_ex ->
-        add_classes class_list_ast class_list_with_ex
+        system_exception_init class_map
+        >>= fun class_map_with_ex ->
+        add_classes class_list_ast class_map_with_ex
 end
