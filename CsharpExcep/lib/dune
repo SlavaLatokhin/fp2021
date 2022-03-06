@@ -1,0 +1,20 @@
+(env
+ (dev
+  (flags
+   (:standard -warn-error -A -w -26)
+   (-short-paths))))
+
+(library
+ (name csharp_lib)
+ (public_name CsharpExcep.Lib)
+ (modules
+  Ast
+  Parser
+  Interpreter
+  Interpret_classes
+  Value_types
+  Test_interpreter)
+ (libraries opal stdio)
+ (inline_tests)
+ (preprocess
+  (pps ppx_expect ppx_deriving.show ppx_deriving.eq)))

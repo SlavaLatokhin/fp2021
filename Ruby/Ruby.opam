@@ -9,10 +9,10 @@ license: "LGPL-3.0-only"
 homepage: "https://github.com/SofuriHafe/fp2021"
 bug-reports: "https://github.com/SofuriHafe/fp2021/issues"
 depends: [
-  "base"
   "dune" {>= "2.9"}
   "angstrom"
   "ppx_expect"
+  "ppx_blob"
   "ppx_deriving"
   "odoc" {with-doc}
   "ocamlformat" {build}
@@ -34,3 +34,4 @@ build: [
   ]
   ["dune" "install" "-p" name "--create-install-files" name]
 ]
+depexts: [ "ruby" ]

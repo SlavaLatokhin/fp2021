@@ -1,0 +1,32 @@
+(library
+ (name demoCypherInterpret)
+ (modules demoCypherInterpret)
+ (public_name Cypher.Demos)
+ (libraries Cypher.Lib stdio))
+
+(executable
+ (name demoCypherParse)
+ (modules demoCypherParse)
+ (public_name demoCypherParse)
+ (libraries Cypher.Lib Cypher.Demos stdio))
+
+(executable
+ (name matchManual)
+ (modules matchManual)
+ (public_name matchManual)
+ (libraries Cypher.Lib Cypher.Demos stdio))
+
+(executable
+ (name whereManual)
+ (modules whereManual)
+ (public_name whereManual)
+ (libraries Cypher.Lib Cypher.Demos stdio))
+
+(executable
+ (name tests)
+ (modules tests)
+ (public_name tests)
+ (libraries Cypher.Lib Cypher.Demos stdio))
+
+(cram
+ (deps ./demoCypherParse.exe ./matchManual.exe ./whereManual.exe ./tests.exe))
