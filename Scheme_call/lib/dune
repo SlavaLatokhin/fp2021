@@ -1,8 +1,8 @@
 (library
  (name scheme_call_lib)
  (public_name Scheme_call.Lib)
- (modules Ast Parser)
- (libraries base angstrom opal ppx_show.runtime)
+ (modules Ast Parser Interpreter)
+ (libraries base opal ppx_show.runtime)
  (preprocess
   (pps ppx_expect ppx_show ppx_deriving.eq))
  (inline_tests))
