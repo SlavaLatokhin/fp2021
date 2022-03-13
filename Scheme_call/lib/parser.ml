@@ -26,7 +26,7 @@ let spec_initial =
 let identifier =
   letter
   <|> spec_initial
-  <~> many (alpha_num <|> spec_initial)
+  <~> many (alpha_num <|> spec_initial <|> one_of [ '+'; '-' ])
   => implode
   <|> token "+"
   <|> token "-"
@@ -34,7 +34,7 @@ let identifier =
 
 let parens = between (spaces >> exactly '(' >> spaces) (spaces >> exactly ')')
 
-let rec expr input = (choice [ const_e; var; conditional; lambda; proc_call ]) input
+let rec expr input = (choice [ conditional; lambda; proc_call; const_e; var ]) input
 and proc_call input = parens (sep_by expr spaces >>= operator) input
 
 and operator = function
@@ -63,8 +63,9 @@ and lambda input =
   parens
     (token "lambda"
     >> spaces
+    
     >> formals
-    >>= fun f -> spaces >> expr >>= fun e -> body => fun b -> Lam (f, e, b))
+    >>= fun f -> spaces >> expr (**>>= fun e -> body*) => fun b -> Lam (f,(* e,*) b))
     input
 
 and formals =
@@ -72,21 +73,29 @@ and formals =
     (spaces >> exactly '(' >> spaces)
     (spaces >> exactly ')')
     (many (spaces >> identifier))
-  => (fun l -> FVarList l)
-  <|> (spaces >> identifier => fun l -> FVar l)
+  => (fun fs -> FVarList fs)
+  <|> (spaces >> identifier => fun f -> FVar f)
 
 and body input = (many expr => fun es -> es) input
 
-let def input =
+let rec def input =
   between
     (spaces >> exactly '(' >> spaces)
     (spaces >> exactly ')')
     (token "define"
     >> spaces
-    >> identifier
-    >>= fun var -> expr => fun expression -> Def (var, expression))
+    >> (def2 <|> def3))
     input
-;;
+and def2 input = 
+  (identifier
+    >>= fun var -> expr => fun expression -> Def (var, expression)) input
+and def3 input = 
+  (between
+    (spaces >> exactly '(' >> spaces)
+    (spaces >> exactly ')') ((many (spaces >> identifier))) >>= fun fs -> expr => fun expression -> Def (List.hd fs, Lam (FVarList(List.tl fs), expression))) input
+
+(* (many (spaces >> identifier))
+  => (fun fs -> FVarList fs) *)
 
 (* let quote input = token "'" >> between
     (spaces >> exactly '(' >> spaces)
@@ -99,7 +108,8 @@ let parse_this parser str = parse parser (LazyStream.of_string str)
 
 let () =
   let input =
-    LazyStream.of_string "(define n 5)\n  (define fac (if (< n 1) 1 (* n (fac (- n 1)))))"
+    LazyStream.of_string
+      "(define (a) 5)"
   in
   match parse prog input with
   | Some ans -> Format.printf "Actual: %a\n" pp_program ans

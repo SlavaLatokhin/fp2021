@@ -4,12 +4,11 @@ type datum =
   | List of const list
 
 and const =
-  | Bool of bool (* #t или #f *)
   | Int of int (* -1, 1 *)
+  | Bool of bool (* #t или #f *)
   | String of string
 
-and syn_binding = keyword * expr
-
+(* and syn_binding = keyword * expr *)
 and formals =
   | FVarList of variable list
   | FVar of variable
@@ -25,7 +24,8 @@ and expr =
   | Quote of datum (* '(<datum> list) или (quote <datum> list)*)
   | Const of const (* 1, "word", #t *)
   | Proc_call of operator * expr list (* Вызов любой функции, созданной пользователем или уже имеющейся, например: (+ 1 1) *)
-  | Lam of formals * expr * expr list (*   (lambda <formals> <body>)  *)
+  | Lam of formals * expr (* * expr list*)
+  (*   (lambda <formals> <body>)  *)
   | Cond of expr * expr * expr option
 (* (if <test> <consequent> <alternate>) *)
 
