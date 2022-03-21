@@ -84,8 +84,5 @@ let recursion =
 let () =
   match parse_and_run_prog recursion with
   | Ok _ -> ()
-  | Error err ->
-    (match err with
-    | Err err_msg -> Printf.printf "%s" err_msg
-    | _ -> print_endline "ERROR!")
+  | Error err -> Printf.printf "%s" err
 ;;

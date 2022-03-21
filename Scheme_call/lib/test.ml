@@ -1,7 +1,7 @@
 open Interpreter
 
-let () =
-  let input_str = {| (define a (lambda (n) (+ n n))) (display (a 5)) |} in
+(* let () =
+  let input_str = {| (display "(^-^)") |} in
   match parse_and_run_prog input_str with
   | Ok _ ->
     ()
@@ -12,18 +12,15 @@ let () =
         ctx.vars
     in
     Format.printf "\nActual ans: %a" pp_value ans *)
-  | Error err ->
-    (match err with
-    | Err err_msg -> Printf.printf "%s" err_msg
-    | _ -> print_endline "ERROR!")
-;;
+  | Error err -> Printf.printf "%s" err
+;; *)
 
 (* open Ast
 open Opal
 open Parser
 
 let () =
-  let input = LazyStream.of_string {| ((lambda x (apply + x)) 1 2) |} in
+  let input = LazyStream.of_string {| (display "(^-^)") |} in
   match parse prog input with
   | Some ans -> Format.printf "Actual: %a\n" pp_program ans
   | None -> print_endline "ERROR!"
@@ -35,10 +32,9 @@ let test_suc input_str expr expected =
   match expr with
   | Error _ -> raise Test_failed
   | Ok (_, ans) ->
-    let equal = ans = expected in
-    (match equal with
-    | true -> true
-    | false ->
+    if ans = expected
+    then true
+    else (
       let _ =
         Format.printf
           "Was interpreted: %s \nExpected: %a\nActual: %a\n\n"

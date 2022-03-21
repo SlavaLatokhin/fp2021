@@ -1,8 +1,18 @@
-(lang dune 2.9)
+(lang dune 2.8)
+
+(generate_opam_files true)
 
 (cram enable)
 
-(name Scheme_call)
+(license LGPL-3.0-only)
+
+(authors "Svyatoslav Latokhin")
+
+(maintainers "https://github.com/SlavaLatokhin")
+
+(bug_reports "https://github.com/SlavaLatokhin/fp2021/pulls")
+
+(homepage "https://github.com/SlavaLatokhin/fp2021")
 
 (package
  (name Scheme_call) ; FIXME and regenerate .opam file using 'dune build @install'

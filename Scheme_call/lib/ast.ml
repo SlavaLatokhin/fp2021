@@ -21,17 +21,15 @@ and formals =
 
 and operator = Op of expr
 
-(* and derived_expr = LetRec of syn_binding list * def list (*   стоят, не так как в коде Какаду    *) *)
 and expr =
   | Var of variable (* Переменная *)
   | Quote of datum (* '(<datum> list) или (quote <datum> list)*)
   | Const of const (* 1, "word", #t *)
   | Proc_call of operator * expr list (* Вызов любой функции, созданной пользователем или уже имеющейся, например: (+ 1 1) *)
   | Lam of formals * expr (*   (lambda <formals> <body>)  *)
-  (* | Der_expr of derived_expr *)
   | Cond of expr * expr * expr option
-
 (* (if <test> <consequent> <alternate>) *)
+
 and id = string
 
 (* and keyword = id *)

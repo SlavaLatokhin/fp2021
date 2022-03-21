@@ -16,13 +16,13 @@ and integer =
   <|> token "-"
   <|> token ""
   >>= fun y ->
-  many1 digit => implode % int_of_string => fun x -> if y == "-" then -x else x
+  many1 digit => implode % int_of_string => fun x -> if y = "-" then -x else x
 
-and boolean = token "#t" <|> token "#f" => fun x -> if x == "#t" then true else false
+and boolean = token "#t" <|> token "#f" => fun x -> if x = "#t" then true else false
 
 and str =
   spaces
-  >> between (exactly '"') (exactly '"') (many (satisfy (fun x -> not (x == '"'))))
+  >> between (exactly '"') (exactly '"') (many (satisfy (fun x -> not (x = '"'))))
   => implode
   => fun x -> x
 ;;
@@ -43,37 +43,40 @@ let identifier =
 
 let parens = between (token "(" >> spaces) (token ")")
 let parens_id = between (token "(" >> spaces) (token ")")
+let ( <~~> ) x y = x >>= fun r -> y >>= fun rs -> return (r, rs)
+
+let operator = function
+  | hd :: tl -> return (Proc_call (Op hd, tl))
+  | _ -> mzero
+;;
+
+let const_d input =
+  choice
+    [ (integer => fun i -> DConst (DInt i))
+    ; (boolean => fun b -> DConst (DBool b))
+    ; (str => fun s -> DConst (DString s))
+    ]
+    input
+;;
+
+let rec qlist input =
+  (between (token "(" >> spaces) (token ")") (sep_by (const_d <|> qlist) spaces)
+  => fun xs -> List xs)
+    input
+;;
+
+let var = identifier => fun x -> Var x
+
+let quote2 input =
+  choice [ (const_d => fun x -> Quote x); (qlist => fun l -> Quote l) ] input
+;;
+
+let quote input = (token "'" >> quote2 <|> parens (token "quote" >> quote2)) input
 
 let rec expr input =
   (choice [ quote; conditional; let_expr; lambda; proc_call; const_e; var ]) input
 
 and proc_call input = parens (many expr >>= operator) input
-
-and operator = function
-  | hd :: tl -> return (Proc_call (Op hd, tl))
-  | _ -> mzero
-
-and quote input = (token "'" >> quote2 <|> parens (token "quote" >> quote2)) input
-
-and quote2 input =
-  choice [ (const_d => fun x -> Quote x); (qlist => fun l -> Quote l) ] input
-
-and qlist input =
-  (between (token "(" >> spaces) (token ")") (sep_by (const_d <|> qlist) spaces)
-  => fun xs -> List xs)
-    input
-
-and const_d input =
-  choice
-    [ (*(identifier => fun x -> Symbol x)
-    ;*)
-      (integer => fun i -> DConst (DInt i))
-    ; (boolean => fun b -> DConst (DBool b))
-    ; (str => fun s -> DConst (DString s))
-    ]
-    input
-
-and var = identifier => fun x -> Var x
 and conditional input = (if_conditional <|> cond_conditional) input
 
 and if_conditional input =
@@ -118,8 +121,6 @@ and formals =
   => (fun fs -> FVarList fs)
   <|> (identifier => fun f -> FVar f)
 
-and ( <~~> ) x y = x >>= fun r -> y >>= fun rs -> return (r, rs)
-
 and let_expr input =
   between
     (token "(" >> spaces)
@@ -137,17 +138,7 @@ and let_expr input =
     input
 ;;
 
-let rec def input =
-  between
-    (token "(" >> spaces)
-    (token ")")
-    (token "define" >> spaces >> (def2 <|> def3))
-    input
-
-and def2 input =
-  (identifier >>= fun var -> expr => fun expression -> Def (var, expression)) input
-
-and def3 input =
+let def3 input =
   (parens_id (many identifier)
   >>= fun fs ->
   expr
@@ -155,6 +146,17 @@ and def3 input =
   if fs = []
   then mzero
   else return (Def (List.hd fs, Lam (FVarList (List.tl fs), expression))))
+    input
+
+and def2 input =
+  (identifier >>= fun var -> expr => fun expression -> Def (var, expression)) input
+;;
+
+let def input =
+  between
+    (token "(" >> spaces)
+    (token ")")
+    (token "define" >> spaces >> (def2 <|> def3))
     input
 ;;
 
