@@ -12,6 +12,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - macos-latest
         ocaml-compiler:
           #- 4.10.x
           #- ocaml-variants.4.11.2+flambda
