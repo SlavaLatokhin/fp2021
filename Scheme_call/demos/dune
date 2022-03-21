@@ -1,0 +1,8 @@
+(executable
+ (name demoRecursion)
+ (modules demoRecursion)
+ (public_name demoRecursion)
+ (libraries Scheme_call.Lib))
+
+(cram
+ (deps ./demoRecursion.exe))

@@ -1,7 +1,13 @@
 type datum =
   (* Переменная или лист перменных *)
-  | DConst of const
-  | List of const list
+  | DConst of dconst
+  | List of datum list
+
+and dconst =
+  | DInt of int (* -1, 1 *)
+  | DBool of bool (* #t или #f *)
+  | DString of string
+(* | Symbol of id *)
 
 and const =
   | Int of int (* -1, 1 *)
@@ -15,27 +21,21 @@ and formals =
 
 and operator = Op of expr
 
-(* and derived_expr =
-  | Cond of expr * expr * expr
-  | Let of syn_binding list * def list (**в книге как будто бы по другому скобки**)
-  | LetRec of syn_binding list * def list *   стоят, не так как в коде Какаду    * *)
+(* and derived_expr = LetRec of syn_binding list * def list (*   стоят, не так как в коде Какаду    *) *)
 and expr =
   | Var of variable (* Переменная *)
   | Quote of datum (* '(<datum> list) или (quote <datum> list)*)
   | Const of const (* 1, "word", #t *)
   | Proc_call of operator * expr list (* Вызов любой функции, созданной пользователем или уже имеющейся, например: (+ 1 1) *)
-  | Lam of formals * expr (* * expr list*)
-  (*   (lambda <formals> <body>)  *)
+  | Lam of formals * expr (*   (lambda <formals> <body>)  *)
+  (* | Der_expr of derived_expr *)
   | Cond of expr * expr * expr option
+
 (* (if <test> <consequent> <alternate>) *)
-
-(* | Der_expr of derived_expr *)
 and id = string
-and keyword = id
-and variable = id
 
-(* and var_def = variable * expr *)
-and def = variable * expr
+(* and keyword = id *)
+and variable = id
 
 and form =
   | Def of variable * expr

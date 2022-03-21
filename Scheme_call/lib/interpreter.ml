@@ -5,19 +5,16 @@ type value =
   | VString of string
   | VInt of int
   | VBool of bool
-  (* | VFraction of int * int *)
+  | VList of value list
+  | VExprList of expr list
   | VVoid
   | VVar of id
   | VLambda of formals * expr
 [@@deriving show { with_path = false }]
 
 type err =
-  | IncorrectType
-  (* | VarNotBound of string *)
-  | TODOERROR of string
   | UnreachableError
   | Err of string
-[@@deriving show { with_path = false }]
 
 type var =
   { name : id
@@ -26,18 +23,37 @@ type var =
 
 type context = { vars : var list }
 
-(* type lambda_var =
+type lambda_var =
   { l_name : id
   ; expr : expr
   }
 
-type lambda_context = { lambda_vars : lambda_var list } *)
+type lambda_context = { lambda_vars : lambda_var list }
 
 module Interpret = struct
   let ( let* ) m f = Result.bind m f
   let return = Result.ok
   let error = Result.error
-  let bin_ops = [ "+"; "*"; "-"; "/"; "="; ">"; "<"; ">="; "<=" ]
+
+  let bin_ops =
+    [ "+"
+    ; "*"
+    ; "-"
+    ; "/"
+    ; "="
+    ; ">"
+    ; "<"
+    ; ">="
+    ; "<="
+    ; "and"
+    ; "or"
+    ; "cons"
+    ; "list"
+    ; "append"
+    ; "apply"
+    ; "newline"
+    ]
+  ;;
 
   let un_ops =
     [ "not"
@@ -49,7 +65,15 @@ module Interpret = struct
     ; "abs"
     ; "boolean?"
     ; "integer?"
-    ; "number?" (* ; "null?" скорее всего для листа (с '), сделать*)
+    ; "number?"
+    ; "procedure?"
+    ; "pair?"
+    ; "list?"
+    ; "null?"
+    ; "car"
+    ; "cdr"
+    ; "length"
+    ; "display"
     ]
   ;;
 
@@ -61,134 +85,317 @@ module Interpret = struct
       | None ->
         (match v with
         | vv when List.mem vv bin_ops || List.mem vv un_ops -> return (VVar v)
-        | _ ->
-          error
-            (TODOERROR
-               "Вызов функции с несуществующим названием, или попытка вызвать не \
-                процедуру")))
+        | _ -> error (Err ("Exception: variable" ^ v ^ "is not bound\n"))))
+    | Quote d ->
+      (match d with
+      | DConst c -> return (interpr_datum c)
+      | List l -> return (VList (interpr_dlist l)))
     | Const c ->
       (match c with
       | Int x -> return (VInt x)
       | Bool x -> return (VBool x)
       | String x -> return (VString x))
     | Lam (formals, expr) -> return (VLambda (formals, expr))
-    | Proc_call (Op op_expr, objs) ->
-      let* op = interpr_expr ctx op_expr in
-      (match op with
-      | VVar v when List.mem v bin_ops -> interpr_bin_expr ctx v objs
-      | VVar v when List.mem v un_ops -> interpr_un_expr ctx v objs
-      | VLambda (FVarList formals, expr) -> interpr_lambda ctx expr formals objs
-      | _ ->
-        error
-          (TODOERROR
-             "Вызов функции с несуществующим названием, или попытка вызвать не процедуру"))
+    | Proc_call (Op op_expr, objs) -> interpr_proc_call ctx op_expr objs
     | Cond (test, conseq, alter) -> interpr_if_condionals ctx test conseq alter
-    | _ -> error (TODOERROR "Еще не умею интерпретировать")
 
-  (* and substitute_vars ctx expr =
+  and interpr_datum c =
+    match c with
+    | DInt x -> VInt x
+    | DBool x -> VBool x
+    | DString x -> VString x
+
+  and interpr_dlist = function
+    | hd :: tl ->
+      (match hd with
+      | DConst d -> List.cons (interpr_datum d) (interpr_dlist tl)
+      | List l -> List.cons (VList (interpr_dlist l)) (interpr_dlist tl))
+    | [] -> []
+
+  and interpr_proc_call ctx op_expr objs =
+    let* op = interpr_expr ctx op_expr in
+    match op with
+    | VVar v when List.mem v bin_ops -> interpr_bin_expr ctx v objs
+    | VVar v when List.mem v un_ops -> interpr_un_expr ctx v objs
+    | VLambda (FVarList formals, expr) -> interpr_lambda_vars ctx expr formals objs
+    | VLambda (FVar formal, expr) -> interpr_lambda_var ctx expr formal objs
+    | VVar v -> error (Err ("Exception: variable" ^ v ^ "is not bound\n"))
+    | _ -> error (Err "Exception: attempt to apply non-procedure value\n")
+
+  and substitute_vars l_vars expr =
     match expr with
     | Var v ->
-      (match find_var ctx v with
-      | Some var -> return var.value
-      | None -> return (Var v))
-    | _ -> error (TODOERROR "Еще не умею интерпретировать") *)
+      (match find_var_for_lambda l_vars v with
+      | Some expr -> expr
+      | None -> Var v)
+    | Const c -> Const c
+    | Proc_call (Op op_expr, objs) ->
+      Proc_call
+        ( Op (substitute_vars l_vars op_expr)
+        , List.map (fun expr -> substitute_vars l_vars expr) objs )
+    | Lam (FVarList formals, expr) ->
+      Lam
+        ( FVarList formals
+        , substitute_vars
+            (List.filter (fun l_var -> not (List.mem l_var.l_name formals)) l_vars)
+            expr )
+    | Lam (FVar formal, expr) ->
+      Lam
+        ( FVar formal
+        , substitute_vars (List.filter (fun l_var -> l_var.l_name <> formal) l_vars) expr
+        )
+    | Cond (test, conseq, alter) ->
+      (match alter with
+      | Some alt ->
+        Cond
+          ( substitute_vars l_vars test
+          , substitute_vars l_vars conseq
+          , Some (substitute_vars l_vars alt) )
+      | None -> Cond (substitute_vars l_vars test, substitute_vars l_vars conseq, None))
+    | Quote d -> Quote d
 
-  (* and create_or_update_var_for_lambda ctx name expr =
-    let* value = interpr_expr ctx expr in
-    match
-      List.find_map
-        (fun var ->
-          match var.name with
-          | var_name when String.equal var_name name -> Some var
-          | _ -> None)
-        ctx.vars
-    with
-    | Some var ->
-      let vars =
-        { name; value }
-        :: List.find_all
-             (fun v ->
-               match v.name with
-               | v_name when String.equal v_name var.name -> false
-               | _ -> true)
-             ctx.vars
-      in
-      return { vars }
-    | None -> return { vars = { name; value } :: ctx.vars } *)
+  and find_var_for_lambda l_vars l_name =
+    List.find_map
+      (fun var ->
+        match var.l_name with
+        | var_name when String.equal var_name l_name -> Some var.expr
+        | _ -> None)
+      l_vars
 
-  and interpr_lambda ctx expr formals objs =
-    let rec helper ctx vars values =
-      match vars, values with
-      | var_hd :: var_tl, obj_hd :: obj_tl ->
-        let* new_ctx = create_or_update_var ctx var_hd obj_hd in
-        helper new_ctx var_tl obj_tl
-      | [], [] -> interpr_expr ctx expr
-      | _, [] -> error (TODOERROR "Неверное число аргументов в лямбде")
-      | [], _ -> error (TODOERROR "Неверное число аргументов в лямбде")
-    in
-    helper ctx formals objs
+  and interpr_lambda_vars ctx expr formals objs =
+    match List.compare_lengths formals objs with
+    | 0 ->
+      let l_vars = List.map2 (fun l_name expr -> { l_name; expr }) formals objs in
+      let new_expr = substitute_vars l_vars expr in
+      interpr_expr ctx new_expr
+    | _ -> error (Err "Exception: incorrect argument count in lambda\n")
+
+  and interpr_lambda_var ctx expr formal objs =
+    let l_var = objs in
+    let* new_ctx = create_or_update_var ctx { name = formal; value = VExprList l_var } in
+    interpr_expr new_ctx expr
 
   and interpr_un_expr ctx op vs =
     match vs with
     | [ v ] ->
       let* v = interpr_expr ctx v in
       (match op, v with
-      | "not", VBool b -> return (VBool (not b))
-      | "zero?", VInt n -> return (VBool (n = 0))
-      | "positive?", VInt n -> return (VBool (n > 0))
-      | "negative?", VInt n -> return (VBool (n < 0))
-      | "odd?", VInt n -> return (VBool (n mod 2 = 1))
-      | "even?", VInt n -> return (VBool (n mod 2 = 0))
-      | "abs", VInt n -> return (VInt (abs n))
-      | "boolean?", n -> is_bool n
-      | s, n when List.mem s [ "integer?"; "number?" ] -> is_num n
-      | _ -> error UnreachableError)
-    | _ -> error (TODOERROR "Несколько аргументов у унарной операции")
+      | "not", v -> return (VBool (not (interpr_bool_value v)))
+      | "zero?", VInt x -> return (VBool (x = 0))
+      | "positive?", VInt x -> return (VBool (x > 0))
+      | "negative?", VInt x -> return (VBool (x < 0))
+      | "odd?", VInt x -> return (VBool (x mod 2 = 1))
+      | "even?", VInt x -> return (VBool (x mod 2 = 0))
+      | "abs", VInt x -> return (VInt (abs x))
+      | "boolean?", x -> is_bool x
+      | "integer?", x -> is_num x
+      | "number?", x -> is_num x
+      | "procedure?", x -> is_procedure x
+      | "pair?", x -> is_pair x
+      | "list?", x -> is_list x
+      | "null?", x -> is_null x
+      | "car", VList l -> l_car l
+      | "cdr", VList l -> l_cdr l
+      | "length", VList l -> return (VInt (l_length l))
+      | "display", x -> interpr_display x
+      | _ -> error (Err ("Exception in " ^ op ^ ": invalid variable type\n")))
+    | _ -> error (Err ("Exception in " ^ op ^ ": incorrect argument count\n"))
+
+  and interpr_display x =
+    let rec helper_display x =
+      match x with
+      | VString v -> Printf.printf "%s" v
+      | VInt v -> Printf.printf "%s" (Base.string_of_int v)
+      | VBool true -> Printf.printf "#t"
+      | VBool false -> Printf.printf "#f"
+      | VList v ->
+        let _ = Printf.printf "(" in
+        let rec helper = function
+          | [ y ] ->
+            let _ = helper_display y in
+            ()
+          | hd :: tl ->
+            let _ = helper_display hd in
+            let _ = Printf.printf " " in
+            helper tl
+          | _ -> ()
+        in
+        let _ = helper v in
+        Printf.printf ")"
+      | VVar v -> Printf.printf "#<procedure %s>" v
+      | VLambda _ -> Printf.printf "#<procedure>"
+      | _ -> ()
+    in
+    let _ = helper_display x in
+    return VVoid
+
+  and l_car = function
+    | hd :: _ -> return hd
+    | [] -> error (Err "Exception in car: () is not a pair\n")
+
+  and l_cdr = function
+    | _ :: tl -> return (VList tl)
+    | [] -> error (Err "Exception in cdr: () is not a pair\n")
+
+  and l_length l = List.length l
+
+  and is_pair = function
+    | VList xs when l_length xs != 0 -> return (VBool true)
+    | _ -> return (VBool false)
+
+  and is_list = function
+    | VList _ -> return (VBool true)
+    | _ -> return (VBool false)
+
+  and is_null = function
+    | VList l -> return (VBool (l_length l = 0))
+    | _ -> return (VBool false)
+
+  and is_procedure = function
+    | VVar v when List.mem v (bin_ops @ un_ops) -> return (VBool true)
+    | VLambda _ -> return (VBool true)
+    | _ -> return (VBool false)
+
+  and interpr_bool_value = function
+    | VBool false -> false
+    | _ -> true
 
   and is_num = function
     | VInt _ -> return (VBool true)
     | _ -> return (VBool false)
 
   and is_bool = function
-    | VInt _ -> return (VBool true)
+    | VBool _ -> return (VBool true)
     | _ -> return (VBool false)
 
-  and interpr_bin_expr ctx = function
-    | "+" -> interpr_add_mul_expr ctx ( + ) 0
-    | "*" -> interpr_add_mul_expr ctx ( * ) 1
-    | "-" -> interpr_sub_div_expr ctx ( - ) 0
-    | "/" -> interpr_sub_div_expr ctx ( / ) 1
-    | "=" -> interpr_comparing_expr ctx ( = )
-    | ">" -> interpr_comparing_expr ctx ( > )
-    | "<" -> interpr_comparing_expr ctx ( < )
-    | ">=" -> interpr_comparing_expr ctx ( >= )
-    | "<=" -> interpr_comparing_expr ctx ( <= )
+  and interpr_bin_expr ctx op_str =
+    match op_str with
+    | "+" -> interpr_add_mul_expr ctx ( + ) op_str 0
+    | "*" -> interpr_add_mul_expr ctx ( * ) op_str 1
+    | "-" -> interpr_sub_div_expr ctx ( - ) op_str "+" 0
+    | "/" -> interpr_sub_div_expr ctx ( / ) op_str "*" 1
+    | "=" -> interpr_comparing_expr ctx ( = ) op_str
+    | ">" -> interpr_comparing_expr ctx ( > ) op_str
+    | "<" -> interpr_comparing_expr ctx ( < ) op_str
+    | ">=" -> interpr_comparing_expr ctx ( >= ) op_str
+    | "<=" -> interpr_comparing_expr ctx ( <= ) op_str
+    | "and" -> interpr_and_or_expr ctx ( && ) op_str true
+    | "or" -> interpr_and_or_expr ctx ( || ) op_str false
+    | "cons" -> create_pair ctx
+    | "list" -> create_list ctx
+    | "append" -> interpr_append ctx
+    | "apply" -> interpr_apply ctx
+    | "newline" -> interpr_newline
     | _ -> fun _ -> error UnreachableError
 
-  and interpr_add_mul_expr ctx op =
+  and interpr_newline = function
+    | [] ->
+      let _ = Printf.printf "\n" in
+      return VVoid
+    | _ -> error (Err "Exception in newline: incorrect argument count\n")
+
+  and interpr_datum_for_apply c =
+    match c with
+    | DInt x -> Const (Int x)
+    | DBool x -> Const (Bool x)
+    | DString x -> Const (String x)
+
+  and interpr_dlist_for_apply = function
+    | hd :: tl ->
+      (match hd with
+      | DConst d -> List.cons (interpr_datum_for_apply d) (interpr_dlist_for_apply tl)
+      | List l -> interpr_dlist_for_apply l @ interpr_dlist_for_apply tl)
+    | [] -> []
+
+  and interpr_apply ctx = function
+    | [ op_expr; list_expr ] ->
+      (match list_expr with
+      | Quote l ->
+        (match l with
+        | DConst dc ->
+          let expr = interpr_datum_for_apply dc in
+          interpr_proc_call ctx op_expr [ expr ]
+        | List l ->
+          let es = interpr_dlist_for_apply l in
+          interpr_proc_call ctx op_expr es)
+      | Proc_call (Op (Var "list"), objs) -> interpr_proc_call ctx op_expr objs
+      | Proc_call (Op op_expr_list, objs) ->
+        interpr_proc_call ctx op_expr (op_expr_list :: objs)
+      | Const c -> interpr_proc_call ctx op_expr [ Const c ]
+      | Var v ->
+        let* x = interpr_expr ctx (Var v) in
+        (match x with
+        | VExprList exprs -> interpr_proc_call ctx op_expr exprs
+        | _ -> error UnreachableError)
+      | _ -> error UnreachableError)
+    | _ -> error UnreachableError
+
+  and interpr_append ctx ls =
+    let rec helper_lists ctx acc = function
+      | hd :: tl ->
+        let* head = interpr_expr ctx hd in
+        (match head with
+        | VList h -> helper_lists ctx (acc @ h) tl
+        | _ -> error (Err "Exception in append: this is not a proper list\n"))
+      | [] -> return acc
+    in
+    let* l = helper_lists ctx [] ls in
+    return (VList l)
+
+  and create_list ctx xs =
+    let rec helper ctx acc = function
+      | hd :: tl ->
+        let* head = interpr_expr ctx hd in
+        helper ctx (acc @ [ head ]) tl
+      | [] -> return acc
+    in
+    let* l = helper ctx [] xs in
+    return (VList l)
+
+  and create_pair ctx = function
+    | [ car; cdr ] ->
+      let* hd = interpr_expr ctx car in
+      let* tl = interpr_expr ctx cdr in
+      (match tl with
+      | VList l -> return (VList (hd :: l))
+      | _ -> error (Err "Exception in cons: incorrect type of cdr\n"))
+    | _ -> error (Err "Exception in cons: incorrect argument count\n")
+
+  and interpr_add_mul_expr ctx op op_str =
     let rec helper acc = function
       | [] -> return (VInt acc)
       | hd :: tl ->
         let* l = interpr_expr ctx hd in
         (match l with
         | VInt n -> helper (op acc n) tl
-        | _ -> error (TODOERROR "Не численный аргумент в бинарной операции"))
+        | _ -> error (Err ("Exception in " ^ op_str ^ ": this is not a number\n")))
     in
     helper
 
-  and interpr_sub_div_expr ctx op c = function
-    | [] -> error (TODOERROR "Ни одного аргумента в вычитании или делении")
-    | [ el ] -> interpr_sub_div_expr ctx op c [ Const (Int c); el ]
+  and interpr_sub_div_expr ctx op op_str op2_str c = function
+    | [] -> error (Err ("Exception: incorrect argument count in call (" ^ op_str ^ ")\n"))
+    | [ el ] -> interpr_sub_div_expr ctx op op_str op2_str c [ Const (Int c); el ]
     | hd :: tl ->
       let* l = interpr_expr ctx hd in
-      let* r = interpr_add_mul_expr ctx (if c = 0 then ( + ) else ( * )) c tl in
+      let* r = interpr_add_mul_expr ctx (if c = 0 then ( + ) else ( * )) op2_str c tl in
       (match l, r, c with
-      | VInt _, VInt 0, 1 -> error (Err "Exception in /: undefined for 0")
+      | VInt _, VInt 0, 1 -> error (Err "Exception in /: undefined for 0\n")
       | VInt n, VInt m, _ -> return (VInt (op n m))
-      | _ -> error (TODOERROR "Не численный аргумент в бинарной операции"))
+      | _ -> error (Err ("Exception in " ^ op_str ^ ": this is not a number\n")))
 
-  and interpr_comparing_expr ctx op = function
-    | [] -> error (Err "Exception: incorrect argument count in call (=)")
+  and interpr_and_or_expr ctx op op_str =
+    let rec helper acc = function
+      | [] -> return (VBool acc)
+      | hd :: tl ->
+        let* l = interpr_expr ctx hd in
+        (match l with
+        | VBool b -> helper (op acc b) tl
+        | _ -> error (Err ("Exception in " ^ op_str ^ ": this is not bool value\n")))
+    in
+    helper
+
+  and interpr_comparing_expr ctx op op_str = function
+    | [] -> error (Err ("Exception: incorrect argument count in call (" ^ op_str ^ ")\n"))
     | hd :: tl ->
       let rec helper arr =
         match arr with
@@ -201,7 +408,7 @@ module Interpret = struct
           | VInt n, VBool true -> return (VInt n)
           | VInt n, VInt m when op n m -> return (VInt n)
           | VInt _, VInt _ -> return (VBool false)
-          | _ -> error (TODOERROR "Неверный тип переменной при сравнении"))
+          | _ -> error (Err ("Exception in " ^ op_str ^ ": this is not a real number\n")))
       in
       let* l = interpr_expr ctx hd in
       (match helper tl, l with
@@ -209,7 +416,7 @@ module Interpret = struct
       | Ok (VInt _), VInt _ -> return (VBool false)
       | Ok (VBool b), _ -> return (VBool b)
       | Error err, _ -> error err
-      | _ -> error (TODOERROR "Неверный тип переменной при сравнении"))
+      | _ -> error (Err ("Exception in " ^ op_str ^ ": this is not a real number\n")))
 
   and interpr_if_condionals ctx test cons alter =
     let* t = interpr_expr ctx test in
@@ -232,19 +439,11 @@ module Interpret = struct
         | _ -> None)
       ctx.vars
 
-  and create_or_update_var ctx name expr =
-    let* value = interpr_expr ctx expr in
-    match
-      List.find_map
-        (fun var ->
-          match var.name with
-          | var_name when String.equal var_name name -> Some var
-          | _ -> None)
-        ctx.vars
-    with
+  and create_or_update_var ctx vv =
+    match find_var ctx vv.name with
     | Some var ->
       let vars =
-        { name; value }
+        vv
         :: List.find_all
              (fun v ->
                match v.name with
@@ -253,12 +452,12 @@ module Interpret = struct
              ctx.vars
       in
       return { vars }
-    | None -> return { vars = { name; value } :: ctx.vars }
+    | None -> return { vars = vv :: ctx.vars }
 
   and interpr_def name expr ctx =
-    (* let* value = interpr_expr ctx expr in *)
-    let* new_ctx = create_or_update_var ctx name expr in
-    return (new_ctx, VVoid)
+    let* value = interpr_expr ctx expr in
+    let* new_ctx = create_or_update_var ctx { name; value } in
+    return (new_ctx, VVar name)
 
   and interpr_form ctx = function
     | Def (var, expr) ->
@@ -286,75 +485,12 @@ let parse_and_run_form str =
   let ctx = I.create_empty_ctx in
   match parse_this form str with
   | Some ast -> I.interpr_form ctx ast
-  | None ->
-    Printf.eprintf "Parsing error\n%!";
-    exit 1
+  | None -> I.error (Err "Exception: invalid syntax\n")
 ;;
 
 let parse_and_run_prog str =
   let module I = Interpret in
   match parse_prog str with
   | Some ast -> I.interpr_prog ast
-  | None ->
-    Format.eprintf "Parsing error\n%!";
-    exit 1
+  | None -> I.error (Err "Exception: invalid syntax\n")
 ;;
-
-let () =
-  let input_str =
-    "(define fac (lambda (n) (if (< n 1) 1 (* n (fac (- n 1)))))) (fac 6)"
-  in
-  match parse_and_run_prog input_str with
-  | Ok (ctx, ans) ->
-    let _ = Printf.printf "Actual ctx: " in
-    let rec helper = function
-      | hd :: tl ->
-        let _ = Format.printf "%a = %a;\n " pp_variable hd.name pp_value hd.value in
-        helper tl
-      | [] -> Format.printf "Actual ans: %a" pp_value ans
-    in
-    helper ctx.vars
-  | Error err ->
-    (match err with
-    | Err err_msg -> Printf.printf "%s" err_msg
-    | TODOERROR err_msg -> Printf.printf "%s" err_msg
-    | _ -> print_endline "ERROR!")
-;;
-
-exception Test_failed
-
-let test_suc expr expected =
-  match expr with
-  | Error _ -> raise Test_failed
-  | Ok (_, ans) -> ans = expected
-;;
-
-let%test _ =
-  let expr = parse_and_run_form "(+)" in
-  test_suc expr (VInt 0)
-;;
-
-let%test _ =
-  let expr = parse_and_run_form "(+ 1 2 3 4 5)" in
-  test_suc expr (VInt 15)
-;;
-
-let%test _ =
-  let expr = parse_and_run_form "(*)" in
-  test_suc expr (VInt 1)
-;;
-
-let%test _ =
-  let expr = parse_and_run_form "(* 1 2 3 4 5)" in
-  test_suc expr (VInt 120)
-;;
-
-let%test _ =
-  let expr = parse_and_run_prog "(+ 1 2 3 4 5)" in
-  test_suc expr (VInt 15)
-;;
-
-(* let%test _ =
-  let expr = Interpret.interpr_expr (Const (Int -1)) in
-  test_suc expr (VInt (-1))
-;;*)
