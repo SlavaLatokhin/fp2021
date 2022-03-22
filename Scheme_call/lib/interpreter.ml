@@ -78,6 +78,12 @@ module Interpret = struct
     ]
   ;;
 
+  let with_return (type u) (f : (u -> _) -> u) : u =
+    let exception R of u in
+    try f (fun x -> raise (R x)) with
+    | R u -> u
+  ;;
+
   let rec interpr_expr ctx expr =
     match expr with
     | Var v ->
@@ -86,7 +92,7 @@ module Interpret = struct
       | None ->
         (match v with
         | vv when List.mem vv (bin_ops @ un_ops) -> return (VVar v)
-        | _ -> error ("Exception: variable " ^ v ^ " is not bound\n")))
+        | _ -> error (Printf.sprintf "Exception: variable %s is not bound\n" v)))
     | Quote d ->
       (match d with
       | DConst c -> return (interpr_datum c)
@@ -100,8 +106,7 @@ module Interpret = struct
     | Proc_call (Op op_expr, objs) -> interpr_proc_call ctx op_expr objs
     | Cond (test, conseq, alter) -> interpr_if_condionals ctx test conseq alter
 
-  and interpr_datum c =
-    match c with
+  and interpr_datum = function
     | DInt x -> VInt x
     | DBool x -> VBool x
     | DString x -> VString x
@@ -122,8 +127,7 @@ module Interpret = struct
     | VLambda (FVar formal, expr) -> interpr_lambda_var ctx expr formal objs
     | _ -> error "Exception: attempt to apply non-procedure value\n"
 
-  and substitute_vars l_vars expr =
-    match expr with
+  and substitute_vars l_vars = function
     | Var v ->
       (match find_var_for_lambda l_vars v with
       | Some expr -> expr
@@ -174,8 +178,7 @@ module Interpret = struct
     let* new_ctx = create_or_update_var ctx { name = formal; value = VExprList objs } in
     interpr_expr new_ctx expr
 
-  and interpr_un_expr ctx op_str vs =
-    match vs with
+  and interpr_un_expr ctx op_str = function
     | [ v ] ->
       let* v = interpr_expr ctx v in
       (match op_str, v with
@@ -195,14 +198,13 @@ module Interpret = struct
       | "null?", x -> is_null x
       | "car", VList l -> l_car l
       | "cdr", VList l -> l_cdr l
-      | "length", VList l -> return (VInt (l_length l))
+      | "length", VList l -> return (VInt (List.length l))
       | "display", x -> interpr_display x
-      | _ -> error ("Exception in " ^ op_str ^ ": invalid variable type\n"))
-    | _ -> error ("Exception in " ^ op_str ^ ": incorrect argument count\n")
+      | _ -> error (Printf.sprintf "Exception in %s: invalid variable type\n" op_str))
+    | _ -> error (Printf.sprintf "Exception in %s: incorrect argument count\n" op_str)
 
   and interpr_display x =
-    let rec helper_display x =
-      match x with
+    let rec helper_display = function
       | VString v -> Printf.printf "%s" v
       | VInt v -> Printf.printf "%s" (Base.string_of_int v)
       | VBool true -> Printf.printf "#t"
@@ -236,10 +238,8 @@ module Interpret = struct
     | _ :: tl -> return (VList tl)
     | [] -> error "Exception in cdr: () is not a pair\n"
 
-  and l_length l = List.length l
-
   and is_pair = function
-    | VList xs when l_length xs != 0 -> return (VBool true)
+    | VList xs when List.length xs != 0 -> return (VBool true)
     | _ -> return (VBool false)
 
   and is_list = function
@@ -247,7 +247,7 @@ module Interpret = struct
     | _ -> return (VBool false)
 
   and is_null = function
-    | VList l -> return (VBool (l_length l = 0))
+    | VList l -> return (VBool (List.length l = 0))
     | _ -> return (VBool false)
 
   and is_procedure = function
@@ -285,7 +285,7 @@ module Interpret = struct
     | "append" -> interpr_append ctx
     | "apply" -> interpr_apply ctx
     | "newline" -> interpr_newline
-    | _ -> fun _ -> error ("Exception: variable " ^ op_str ^ " is not bound\n")
+    | _ -> fun _ -> error (Printf.sprintf "Exception: variable %s is not bound\n" op_str)
 
   and interpr_newline = function
     | [] ->
@@ -293,8 +293,7 @@ module Interpret = struct
       return VVoid
     | _ -> error "Exception in newline: incorrect argument count\n"
 
-  and interpr_datum_for_apply c =
-    match c with
+  and interpr_datum_for_apply = function
     | DInt x -> Const (Int x)
     | DBool x -> Const (Bool x)
     | DString x -> Const (String x)
@@ -322,25 +321,25 @@ module Interpret = struct
       | _ -> error "Exception in apply: this is not a proper list")
     | _ -> error "Exception in apply: incorrect argument count"
 
-  and interpr_append ctx ls =
-    let rec helper_lists ctx acc = function
+  and interpr_append ctx =
+    let rec helper_lists acc = function
       | hd :: tl ->
         let* head = interpr_expr ctx hd in
         (match head with
-        | VList h -> helper_lists ctx (acc @ h) tl
+        | VList h -> helper_lists (acc @ h) tl
         | _ -> error "Exception in append: this is not a proper list\n")
       | [] -> return (VList acc)
     in
-    helper_lists ctx [] ls
+    helper_lists []
 
-  and create_list ctx xs =
-    let rec helper ctx acc = function
+  and create_list ctx =
+    let rec helper acc = function
       | hd :: tl ->
         let* head = interpr_expr ctx hd in
-        helper ctx (acc @ [ head ]) tl
+        helper (acc @ [ head ]) tl
       | [] -> return (VList acc)
     in
-    helper ctx [] xs
+    helper []
 
   and create_pair ctx = function
     | [ car; cdr ] ->
@@ -358,12 +357,13 @@ module Interpret = struct
         let* l = interpr_expr ctx hd in
         (match l with
         | VInt n -> helper (op acc n) tl
-        | _ -> error ("Exception in " ^ op_str ^ ": this is not a number\n"))
+        | _ -> error (Printf.sprintf "Exception in %s: this is not a number\n" op_str))
     in
     helper
 
   and interpr_sub_div_expr ctx op op_str c = function
-    | [] -> error ("Exception: incorrect argument count in call (" ^ op_str ^ ")\n")
+    | [] ->
+      error (Printf.sprintf "Exception: incorrect argument count in call (%s)\n" op_str)
     | [ el ] -> interpr_sub_div_expr ctx op op_str c [ Const (Int c); el ]
     | hd :: tl ->
       let* l = interpr_expr ctx hd in
@@ -371,7 +371,7 @@ module Interpret = struct
       (match l, r, c with
       | VInt _, VInt 0, 1 -> error "Exception in /: undefined for 0\n"
       | VInt n, VInt m, _ -> return (VInt (op n m))
-      | _ -> error ("Exception in " ^ op_str ^ ": this is not a number\n"))
+      | _ -> error (Printf.sprintf "Exception in %s: this is not a number\n" op_str))
 
   and interpr_and_or_expr ctx op op_str =
     let rec helper acc = function
@@ -380,12 +380,13 @@ module Interpret = struct
         let* l = interpr_expr ctx hd in
         (match l with
         | VBool b -> helper (op acc b) tl
-        | _ -> error ("Exception in " ^ op_str ^ ": this is not bool value\n"))
+        | _ -> error (Printf.sprintf "Exception in %s: this is not bool value\n" op_str))
     in
     helper
 
   and interpr_comparing_expr ctx op op_str = function
-    | [] -> error ("Exception: incorrect argument count in call (" ^ op_str ^ ")\n")
+    | [] ->
+      error (Printf.sprintf "Exception: incorrect argument count in call (%s)\n" op_str)
     | hd :: tl ->
       let rec helper arr =
         match arr with
@@ -398,7 +399,8 @@ module Interpret = struct
           | VInt n, VBool true -> return (VInt n)
           | VInt n, VInt m when op n m -> return (VInt n)
           | VInt _, VInt _ -> return (VBool false)
-          | _ -> error ("Exception in " ^ op_str ^ ": this is not a real number\n"))
+          | _ ->
+            error (Printf.sprintf "Exception in %s: this is not a real number\n" op_str))
       in
       let* l = interpr_expr ctx hd in
       (match helper tl, l with
@@ -406,7 +408,7 @@ module Interpret = struct
       | Ok (VInt _), VInt _ -> return (VBool false)
       | Ok (VBool b), _ -> return (VBool b)
       | Error err, _ -> error err
-      | _ -> error ("Exception in " ^ op_str ^ ": this is not a real number\n"))
+      | _ -> error (Printf.sprintf "Exception in %s: this is not a real number\n" op_str))
 
   and interpr_if_condionals ctx test cons alter =
     let* t = interpr_expr ctx test in
