@@ -32,10 +32,9 @@ let test_suc input_str expr expected =
   match expr with
   | Error _ -> raise Test_failed
   | Ok (_, ans) ->
-    if ans = expected
-    then true
-    else (
-      let _ =
+    let _ =
+      if ans <> expected
+      then
         Format.printf
           "Was interpreted: %s \nExpected: %a\nActual: %a\n\n"
           input_str
@@ -43,8 +42,8 @@ let test_suc input_str expr expected =
           expected
           pp_value
           ans
-      in
-      false)
+    in
+    ans = expected
 ;;
 
 let%test _ =
@@ -60,13 +59,13 @@ let%test _ =
 ;;
 
 let%test _ =
-  let input_str = {| (*) |} in
+  let input_str = {| ( * ) |} in
   let expr = parse_and_run_prog input_str in
   test_suc input_str expr (VInt 1)
 ;;
 
 let%test _ =
-  let input_str = {| (* 1 2 3 4 5) |} in
+  let input_str = {| ( * 1 2 3 4 5) |} in
   let expr = parse_and_run_prog input_str in
   test_suc input_str expr (VInt 120)
 ;;
@@ -107,11 +106,11 @@ let%test _ =
   test_suc input_str expr (VBool true)
 ;;
 
-(* let%test _ =
+let%test _ =
   let input_str = {| (apply (if #f + *) (list 1 2 3 4 5)) |} in
   let expr = parse_and_run_prog input_str in
   test_suc input_str expr (VInt 120)
-;; *)
+;;
 
 let%test _ =
   let input_str = {| (zero? 0) |} in

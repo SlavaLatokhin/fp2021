@@ -18,7 +18,7 @@ and integer =
   >>= fun y ->
   many1 digit => implode % int_of_string => fun x -> if y = "-" then -x else x
 
-and boolean = token "#t" <|> token "#f" => fun x -> if x = "#t" then true else false
+and boolean = token "#t" <|> token "#f" => fun x -> x = "#t"
 
 and str =
   spaces
@@ -143,9 +143,9 @@ let def3 input =
   >>= fun fs ->
   expr
   >>= fun expression ->
-  if fs = []
-  then mzero
-  else return (Def (List.hd fs, Lam (FVarList (List.tl fs), expression))))
+  match fs with
+  | [] -> mzero
+  | _ -> return (Def (List.hd fs, Lam (FVarList (List.tl fs), expression))))
     input
 
 and def2 input =
