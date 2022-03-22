@@ -171,8 +171,7 @@ module Interpret = struct
     | _ -> error "Exception: incorrect argument count in lambda\n"
 
   and interpr_lambda_var ctx expr formal objs =
-    let l_var = objs in
-    let* new_ctx = create_or_update_var ctx { name = formal; value = VExprList l_var } in
+    let* new_ctx = create_or_update_var ctx { name = formal; value = VExprList objs } in
     interpr_expr new_ctx expr
 
   and interpr_un_expr ctx op_str vs =
@@ -312,12 +311,8 @@ module Interpret = struct
       (match list_expr with
       | Quote l ->
         (match l with
-        | DConst dc ->
-          let expr = interpr_datum_for_apply dc in
-          interpr_proc_call ctx op_expr [ expr ]
-        | List l ->
-          let es = interpr_dlist_for_apply l in
-          interpr_proc_call ctx op_expr es)
+        | DConst dc -> interpr_proc_call ctx op_expr [ interpr_datum_for_apply dc ]
+        | List l -> interpr_proc_call ctx op_expr (interpr_dlist_for_apply l))
       | Proc_call (Op (Var "list"), objs) -> interpr_proc_call ctx op_expr objs
       | Var v ->
         let* x = interpr_expr ctx (Var v) in
@@ -334,20 +329,18 @@ module Interpret = struct
         (match head with
         | VList h -> helper_lists ctx (acc @ h) tl
         | _ -> error "Exception in append: this is not a proper list\n")
-      | [] -> return acc
+      | [] -> return (VList acc)
     in
-    let* l = helper_lists ctx [] ls in
-    return (VList l)
+    helper_lists ctx [] ls
 
   and create_list ctx xs =
     let rec helper ctx acc = function
       | hd :: tl ->
         let* head = interpr_expr ctx hd in
         helper ctx (acc @ [ head ]) tl
-      | [] -> return acc
+      | [] -> return (VList acc)
     in
-    let* l = helper ctx [] xs in
-    return (VList l)
+    helper ctx [] xs
 
   and create_pair ctx = function
     | [ car; cdr ] ->
@@ -418,9 +411,7 @@ module Interpret = struct
   and interpr_if_condionals ctx test cons alter =
     let* t = interpr_expr ctx test in
     match t, alter with
-    | VBool false, Some alt ->
-      let* a = interpr_expr ctx alt in
-      return a
+    | VBool false, Some alt -> interpr_expr ctx alt
     | VBool false, None -> return VVoid
     | _ -> interpr_expr ctx cons
 
