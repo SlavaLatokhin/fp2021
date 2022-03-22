@@ -12,6 +12,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - ubuntu-18.04
           - macos-latest
           #- windows-latest
         ocaml-compiler:
@@ -26,6 +27,9 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+
+      - run: sudo apt-get update -y
+
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.7.0
         with:
