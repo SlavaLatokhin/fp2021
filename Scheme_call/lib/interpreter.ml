@@ -247,7 +247,7 @@ module Interpret = struct
     | _ -> return (VBool false)
 
   and is_null = function
-    | VList l -> return (VBool (List.length l = 0))
+    | VList [] -> return (VBool true)
     | _ -> return (VBool false)
 
   and is_procedure = function
@@ -388,8 +388,7 @@ module Interpret = struct
     | [] ->
       error (Printf.sprintf "Exception: incorrect argument count in call (%s)\n" op_str)
     | hd :: tl ->
-      let rec helper arr =
-        match arr with
+      let rec helper = function
         | [] -> return (VBool true)
         | hd :: tl ->
           let* l = interpr_expr ctx hd in
@@ -439,8 +438,8 @@ module Interpret = struct
                | _ -> true)
              ctx.vars
       in
-      return { vars; call_cc = ctx.call_cc }
-    | None -> return { vars = vv :: ctx.vars; call_cc = ctx.call_cc }
+      return { ctx with vars }
+    | None -> return { ctx with vars = vv :: ctx.vars }
 
   and interpr_def name expr ctx =
     let* value = interpr_expr ctx expr in
