@@ -11,7 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
+          #- ubuntu-latest
           - macos-latest
         ocaml-compiler:
           #- 4.10.x
@@ -71,7 +71,7 @@ jobs:
 
       - name: Naive linting
         run: |
-          cd ${{ env.latest }} && ../lint_filesystem.py ${{ env.latest }}
+          cd ${{ env.latest }} && python3 ../lint_filesystem.py ${{ env.latest }}
 
       - name: Checking ocamlformat
         run: |
