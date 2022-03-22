@@ -19,7 +19,10 @@ type var =
   ; value : value
   }
 
-type context = { vars : var list }
+type context =
+  { vars : var list
+  ; call_cc : value
+  }
 
 type lambda_var =
   { l_name : id
@@ -421,7 +424,7 @@ module Interpret = struct
     | VBool false, None -> return VVoid
     | _ -> interpr_expr ctx cons
 
-  and create_empty_ctx = { vars = [] }
+  and create_empty_ctx = { vars = []; call_cc = VVoid }
 
   and find_var ctx name =
     List.find_map
@@ -443,8 +446,8 @@ module Interpret = struct
                | _ -> true)
              ctx.vars
       in
-      return { vars }
-    | None -> return { vars = vv :: ctx.vars }
+      return { vars; call_cc = ctx.call_cc }
+    | None -> return { vars = vv :: ctx.vars; call_cc = ctx.call_cc }
 
   and interpr_def name expr ctx =
     let* value = interpr_expr ctx expr in

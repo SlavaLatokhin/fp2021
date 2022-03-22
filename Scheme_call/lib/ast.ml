@@ -7,14 +7,12 @@ and dconst =
   | DInt of int (* -1, 1 *)
   | DBool of bool (* #t или #f *)
   | DString of string
-(* | Symbol of id *)
 
 and const =
   | Int of int (* -1, 1 *)
   | Bool of bool (* #t или #f *)
   | String of string
 
-(* and syn_binding = keyword * expr *)
 and formals =
   | FVarList of variable list
   | FVar of variable
@@ -31,8 +29,6 @@ and expr =
 (* (if <test> <consequent> <alternate>) *)
 
 and id = string
-
-(* and keyword = id *)
 and variable = id
 
 and form =
