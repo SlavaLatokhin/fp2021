@@ -13,11 +13,13 @@ and const =
   | Bool of bool (* #t или #f *)
   | String of string
 
+and operator = Op of expr
+
 and formals =
   | FVarList of variable list
   | FVar of variable
 
-and operator = Op of expr
+and id = string
 
 and expr =
   | Var of variable (* Переменная *)
@@ -28,7 +30,6 @@ and expr =
   | Cond of expr * expr * expr option
 (* (if <test> <consequent> <alternate>) *)
 
-and id = string
 and variable = id
 
 and form =
