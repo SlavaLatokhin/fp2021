@@ -2,7 +2,7 @@
  (name scheme_delim_lib)
  (public_name Scheme_delim.Lib)
  (modules Ast Parser Interpreter)
- (libraries opal base angstrom ppx_show.runtime)
+ (libraries base angstrom ppx_show.runtime)
  (preprocess
   (pps ppx_expect ppx_show ppx_deriving.eq))
  (inline_tests))
