@@ -1,0 +1,8 @@
+(executable
+ (name demoFunc)
+ (modules demoFunc)
+ (public_name demoFunc)
+ (libraries Scheme_delim.Lib))
+
+(cram
+ (deps ./demoFunc.exe))

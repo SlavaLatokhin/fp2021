@@ -2,13 +2,9 @@ open Angstrom
 open Ast
 
 let is_space = function
-  | ' ' -> true
-  | '\t' -> true
+  | ' ' | '\t' | '\n' -> true
   | _ -> false
 ;;
-
-let spaces = skip_while is_space
-let token x = spaces *> string x
 
 let is_char = function
   | 'a' .. 'z' | 'A' .. 'Z' -> true
@@ -31,9 +27,11 @@ let is_special_subsequent = function
   | _ -> false
 ;;
 
-let is_peculial_identifier = string
+let spaces = skip_while is_space
+let token x = spaces *> string x
+let parens p = spaces *> (token "(" *> p <* token ")")
 let ( <~> ) x xs = x >>= fun r -> xs >>= fun rs -> return (r :: rs)
-let ( <~~> ) x y = x >>= fun r -> y >>= fun rs -> return (r, rs)
+let ( <-> ) x y = x >>= fun m -> y >>= fun n -> return (m, n)
 
 let integer =
   spaces *> choice [ token "-"; token "+"; token "" ]
@@ -59,8 +57,6 @@ let identifier =
      <|> (initial <~> many subsequent >>| fun ss -> String.of_seq (List.to_seq ss)))
 ;;
 
-let parens p = spaces *> (token "(" *> p <* token ")")
-
 let formals =
   spaces
   *> (parens (many identifier)
@@ -85,11 +81,12 @@ let datum =
 
 let expr =
   fix (fun expr ->
+      spaces
+      *>
       let quotation =
-        spaces
-        *> (token "'" *> datum
-           >>= (fun d -> return (EQuote d))
-           <|> parens (token "quote" *> datum >>= fun d -> return (EQuote d)))
+        token "'" *> datum
+        >>= (fun d -> return (EQuote d))
+        <|> parens (token "quote" *> datum >>= fun d -> return (EQuote d))
       in
       let lambda_expr =
         parens
@@ -99,7 +96,7 @@ let expr =
           >>= fun e ->
           option
             (ELambda (fs, e, None))
-            (many expr >>= fun me -> return (ELambda (fs, e, Some me))))
+            (many1 expr >>= fun me -> return (ELambda (fs, e, Some me))))
       in
       let conditional =
         parens
@@ -116,7 +113,7 @@ let expr =
         fix (fun cond_clause ->
             spaces
             *> (parens (token "else" *> expr)
-               <|> (parens (expr <~~> expr)
+               <|> (parens (expr <-> expr)
                    >>= fun (test, sequence) ->
                    option
                      (ECond (test, sequence, None))
@@ -152,19 +149,18 @@ let definition =
               >>= fun fs ->
               spaces *> expr
               >>= fun e ->
-              spaces
-              *> option
-                   (FDef (List.hd fs, ELambda (FVarList (List.tl fs), e, None)))
-                   (many expr
-                   >>| fun me ->
-                   FDef (List.hd fs, ELambda (FVarList (List.tl fs), e, Some me))))))
+              option
+                (FDef (List.hd fs, ELambda (FVarList (List.tl fs), e, None)))
+                (spaces *> many expr
+                >>| fun me ->
+                FDef (List.hd fs, ELambda (FVarList (List.tl fs), e, Some me))))))
 ;;
 
-let prog = many (definition <|> (expr >>| fun x -> FExpr x)) <* spaces
+let prog = sep_by spaces (definition <|> (expr >>| fun x -> FExpr x)) <* spaces
 
-let () =
-  let str = {|  |} in
+(* let () =
+  let str = {| ( display  '(^-^)  )) |} in
   match parse_string ~consume:All prog str with
   | Ok v -> Format.printf "%a\n" pp_program v
   | Error _ -> print_endline "Ты старался, идиот!\n"
-;;
+;; *)

@@ -10,15 +10,15 @@
 
 (maintainers "Sheremet Irina")
 
-(bug_reports "FIXME where to put bug reports about the code")
+(bug_reports "https://github.com/IraSheremet/fp2021/pulls")
 
-(homepage "FIXME Homepage")
+(homepage "https://github.com/IraSheremet/fp2021")
 
 (package
- (name Scheme_delim) ; FIXME and regenerate .opam file using 'dune build @install'
- (synopsis "FIXME An interpreter for language")
+ (name Scheme_delim)
+ (synopsis "An interpreter for Scheme")
  (description
-  "FIXME. A longer description, for example, which are the most interesing features being supported, etc.")
+  "Scheme language interpreter with delimited continuations (for now without delimited continuations)")
  (version 0.1)
  (depends
   dune
@@ -27,6 +27,7 @@
   qcheck-core
   ppx_expect
   ppx_deriving
+  ppx_show
   (odoc :with-doc)
   (ocamlformat :build)
   base

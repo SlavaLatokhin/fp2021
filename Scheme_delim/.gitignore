@@ -4,3 +4,5 @@ _build
 /node_modules
 /esy.lock
 /.melange.eobjs
+.json
+
