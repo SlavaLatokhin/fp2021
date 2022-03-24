@@ -197,8 +197,7 @@ module Interpret (M : MONAD_FAIL) = struct
       | EArg (Labeled (name, exp)) ->
         run
           (lookup_env name lab)
-          ~ok:(fun x ->
-            match x with
+          ~ok:(function
             | InternalV ->
               let* evaled = eval_exp env exp in
               let new_state = exd_env name evaled fstate in
