@@ -9,7 +9,7 @@
   val ans = 8
   =====================================
   $ ./tests.exe <<-EOF
-  > let rec fold_left ~f init = function 
+  > let rec fold_left ~f init = function
   >  | [] -> init
   >  | hd :: tl -> fold_left ~f:f (f init hd) tl;;
   > let k = fold_left 0 [1;2;3] ~f:(fun acc x ->  acc + x * x);;
@@ -62,4 +62,9 @@
   val x3 = 3
   val x4 = 4
   val x5 = 5
+  =====================================
+# Right behaviour of this test requires thinking about types
+  $ ./tests.exe <<-EOF
+  > let f ?(x=5) = x;;
+  val f = <fun>
   =====================================
