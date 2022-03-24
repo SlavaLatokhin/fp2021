@@ -29,135 +29,15 @@ and variable_t =
   ; variable_value : value
   }
 
-let rec eval_expr context = function
-  | EConst c ->
-    (match c with
-    | CInt i -> return (VInt i)
-    | CString s -> return (VString s)
-    | CBool b -> return (VBool b))
-  | EVar v -> for_var context v
-  | EQuote q ->
-    (match q with
-    | DConst d -> for_dconst d
-    | DList dl -> for_datum_list dl)
-  | ELambda (formals, command, sequence) -> return (VLambda (formals, command, sequence))
-  | ECond (test, consequent, alternative) ->
-    for_conditional context test consequent alternative
-  | EProc_call (operator, operands) ->
-    let* opers = for_opers context operands in
-    let* oper = eval_expr context operator in
-    for_proc_call context oper opers
-
-and for_opers context operands =
-  let rec helper ans = function
-    | [] -> return ans
-    | hd :: tl ->
-      let* e = eval_expr context hd in
-      helper (ans @ [ e ]) tl
-  in
-  helper [] operands
-
-and for_proc_call context oper opers =
-  match oper with
-  | VVar "+" -> for_add_or_mul ( + ) 0 opers
-  | VVar "-" -> for_sub_or_div ( - ) 0 opers
-  | VVar "*" -> for_add_or_mul ( * ) 1 opers
-  | VVar "/" -> for_sub_or_div ( / ) 1 opers
-  | VVar "=" -> for_comparison ( = ) opers
-  | VVar ">" -> for_comparison ( > ) opers
-  | VVar "<" -> for_comparison ( < ) opers
-  | VVar ">=" -> for_comparison ( >= ) opers
-  | VVar "<=" -> for_comparison ( <= ) opers
-  | VVar "or" -> for_or opers
-  | VVar "and" -> for_and opers
-  | VVar "max" -> for_max_or_min max opers
-  | VVar "min" -> for_max_or_min min opers
-  | VVar "not" -> for_unary_operations oper opers
-  | VVar "integer?" -> for_unary_operations oper opers
-  | VVar "boolean?" -> for_unary_operations oper opers
-  | VVar "string?" -> for_unary_operations oper opers
-  | VVar "list?" -> for_unary_operations oper opers
-  | VVar "zero?" -> for_unary_operations oper opers
-  | VVar "positive?" -> for_unary_operations oper opers
-  | VVar "negative?" -> for_unary_operations oper opers
-  | VVar "odd?" -> for_unary_operations oper opers
-  | VVar "even?" -> for_unary_operations oper opers
-  | VVar "abs" -> for_unary_operations oper opers
-  | VVar "list" -> for_list context opers
-  | VVar "apply" -> for_apply context opers
-  | VVar "display" -> for_unary_operations oper opers
-  | VLambda (formals, command, sequence) ->
-    for_lambda context formals command sequence opers
-  | _ -> fail (IncorrectType "ERROR: invalid application")
-
-and for_var context var =
+let for_var context var =
   let rec helper = function
     | [] -> return (VVar var)
     | hd :: tl -> if hd.variable_name = var then return hd.variable_value else helper tl
   in
   helper context
+;;
 
-and for_dconst = function
-  | DInt i -> return (VInt i)
-  | DString s -> return (VString s)
-  | DBool b -> return (VBool b)
-  | DSymbol smbl -> return (VSymbol smbl)
-
-and for_datum_list datum_list =
-  let rec cata ans = function
-    | [] -> return (VList ans)
-    | hd :: tl ->
-      (match hd with
-      | DConst d ->
-        let* a = for_dconst d in
-        cata (ans @ [ a ]) tl
-      | DList dl ->
-        let* a = for_datum_list dl in
-        cata (ans @ [ a ]) tl)
-  in
-  cata [] datum_list
-
-and check_if_var_in_context context var =
-  let rec helper name = function
-    | [] -> false
-    | hd :: tl when hd.variable_name <> name -> helper name tl
-    | _ -> true
-  in
-  helper var.variable_name context
-
-and find_var_in_context context var_name =
-  let rec helper name = function
-    | [] -> fail UnboundVariable
-    | hd :: tl ->
-      if hd.variable_name = name then return hd.variable_value else helper name tl
-  in
-  helper var_name context
-
-and create_new_var context var_name eval_value =
-  return ({ variable_name = var_name; variable_value = eval_value } :: context)
-
-and update_var context var_name eval_value =
-  let rec helper name answer = function
-    | [] -> fail UnboundVariable
-    | hd :: tl ->
-      if hd.variable_name = var_name
-      then
-        return (answer @ ({ variable_name = var_name; variable_value = eval_value } :: tl))
-      else helper name (hd :: answer) tl
-  in
-  helper var_name [] context
-
-and for_definition context var_name var_value =
-  let* eval_value = eval_expr context var_value in
-  match
-    check_if_var_in_context
-      context
-      { variable_name = var_name; variable_value = eval_value }
-  with
-  | false -> create_new_var context var_name eval_value
-  | true -> update_var context var_name eval_value
-
-and for_add_or_mul operator start opers =
+let for_add_or_mul operator start opers =
   let rec cata answer = function
     | [] -> return (VInt answer)
     | hd :: tl ->
@@ -166,16 +46,9 @@ and for_add_or_mul operator start opers =
       | _ -> fail (IncorrectType "ERROR: real number required"))
   in
   cata start opers
+;;
 
-and for_sub_or_div operator start = function
-  | [] -> fail WrongNumber
-  | [ x ] -> eval_sub_or_div [ x ] start operator start
-  | hd :: tl ->
-    (match hd with
-    | VInt i -> eval_sub_or_div tl i operator start
-    | _ -> fail (IncorrectType "ERROR: real number required"))
-
-and eval_sub_or_div opers head operator flag =
+let eval_sub_or_div opers head operator flag =
   let rec cata answer = function
     | [] -> return (VInt answer)
     | hd :: tl ->
@@ -185,16 +58,18 @@ and eval_sub_or_div opers head operator flag =
       | _ -> fail (IncorrectType "ERROR: real number required"))
   in
   cata head opers
+;;
 
-and for_comparison operator = function
+let for_sub_or_div operator start = function
+  | [] -> fail WrongNumber
+  | [ x ] -> eval_sub_or_div [ x ] start operator start
   | hd :: tl ->
     (match hd with
-    | VInt i -> eval_comparison tl i operator
-    | VVar _ -> fail UnboundVariable
+    | VInt i -> eval_sub_or_div tl i operator start
     | _ -> fail (IncorrectType "ERROR: real number required"))
-  | _ -> fail WrongNumber
+;;
 
-and eval_comparison opers left operator =
+let eval_comparison opers left operator =
   let rec cata f = function
     | r :: xs ->
       (match r with
@@ -204,8 +79,18 @@ and eval_comparison opers left operator =
     | [] -> return (VBool true)
   in
   cata left opers
+;;
 
-and for_or opers =
+let for_comparison operator = function
+  | hd :: tl ->
+    (match hd with
+    | VInt i -> eval_comparison tl i operator
+    | VVar _ -> fail UnboundVariable
+    | _ -> fail (IncorrectType "ERROR: real number required"))
+  | _ -> fail WrongNumber
+;;
+
+let for_or opers =
   let rec cata = function
     | hd :: tl ->
       (match hd with
@@ -214,8 +99,9 @@ and for_or opers =
     | [] -> return (VBool false)
   in
   cata opers
+;;
 
-and for_and opers =
+let for_and opers =
   let rec cata ans = function
     | hd :: tl ->
       (match hd with
@@ -224,22 +110,20 @@ and for_and opers =
     | [] -> return ans
   in
   cata (VBool true) opers
+;;
 
-and for_list context opers =
+let for_for_max_or_min operator opers head =
   let rec cata ans = function
-    | [] -> return (VList ans)
-    | VVar hd :: tl ->
-      let* var = find_var_in_context context hd in
-      cata (ans @ [ var ]) tl
-    | hd :: tl -> cata (ans @ [ hd ]) tl
+    | [] -> return (VInt ans)
+    | hd :: tl ->
+      (match hd with
+      | VInt i -> cata (operator i ans) tl
+      | _ -> fail (IncorrectType "ERROR: real number required"))
   in
-  cata [] opers
+  cata head opers
+;;
 
-and for_apply context = function
-  | [ x1; VList x2 ] -> for_proc_call context x1 x2
-  | _ -> fail WrongNumber
-
-and for_max_or_min operator = function
+let for_max_or_min operator = function
   | [] -> fail WrongNumber
   | [ x ] ->
     (match x with
@@ -249,18 +133,50 @@ and for_max_or_min operator = function
     (match hd with
     | VInt i -> for_for_max_or_min operator tl i
     | _ -> fail (IncorrectType "ERROR: real number required"))
+;;
 
-and for_for_max_or_min operator opers head =
-  let rec cata ans = function
-    | [] -> return (VInt ans)
-    | hd :: tl ->
-      (match hd with
-      | VInt i -> cata (operator i ans) tl
-      | _ -> fail (IncorrectType "ERROR: real number required"))
+let is_int_bool_str_list = function
+  | 0, VInt _ -> return (VBool true)
+  | 1, VBool _ -> return (VBool true)
+  | 2, VString _ -> return (VBool true)
+  | 3, VList _ -> return (VBool true)
+  | _ -> return (VBool false)
+;;
+
+let for_display operand =
+  let rec cata = function
+    | VInt i -> Format.printf "%d" i
+    | VString s -> Format.printf "%s" s
+    | VBool true -> Format.printf "#t"
+    | VBool false -> Format.printf "#f"
+    | VSymbol s -> Format.printf "%s" s
+    | VLambda _ -> Format.printf "#<procedure>"
+    | VVar v -> Format.printf "#<procedure %s>" v
+    | VList l ->
+      let _ = Format.printf "(" in
+      let rec print_list = function
+        | [ x ] -> cata x
+        | hd :: tl ->
+          let _ = cata hd in
+          let _ = Format.printf " " in
+          print_list tl
+        | _ -> ()
+      in
+      let _ = print_list l in
+      Format.printf ")"
   in
-  cata head opers
+  let _ = cata operand in
+  return (VString "#undef")
+;;
 
-and for_unary_operations operator = function
+let for_newline = function
+  | [] ->
+    let _ = Format.printf "\n" in
+    return (VString "#undef")
+  | _ -> fail WrongNumber
+;;
+
+let for_unary_operations operator = function
   | [ operand ] ->
     (match operator with
     | VVar "not" ->
@@ -289,38 +205,60 @@ and for_unary_operations operator = function
     | VVar "display" -> for_display operand
     | _ -> fail (IncorrectType "ERROR: invalid application"))
   | _ -> fail (IncorrectType "Wrong number of arguments")
+;;
 
-and is_int_bool_str_list = function
-  | 0, VInt _ -> return (VBool true)
-  | 1, VBool _ -> return (VBool true)
-  | 2, VString _ -> return (VBool true)
-  | 3, VList _ -> return (VBool true)
-  | _ -> return (VBool false)
+let rec for_dconst = function
+  | DInt i -> return (VInt i)
+  | DString s -> return (VString s)
+  | DBool b -> return (VBool b)
+  | DSymbol smbl -> return (VSymbol smbl)
 
-and for_display operand =
+and for_datum_list datum_list =
   let rec cata = function
-    | VInt i -> Format.printf "%d\n" i
-    | VString s -> Format.printf "%s\n" s
-    | VBool true -> Format.printf "#t\n"
-    | VBool false -> Format.printf "#f\n"
-    | VSymbol s -> Format.printf "%s\n" s
-    | VLambda _ -> Format.printf "#<procedure>\n"
-    | VVar v -> Format.printf "#<procedure %s>\n" v
-    | VList l ->
-      let _ = Format.printf "(" in
-      let rec print_list = function
-        | [ x ] -> cata x
-        | hd :: tl ->
-          let _ = cata hd in
-          let _ = Format.printf " " in
-          print_list tl
-        | _ -> ()
-      in
-      let _ = print_list l in
-      Format.printf ")\n"
+    | [] -> return []
+    | hd :: tl ->
+      (match hd with
+      | DConst d ->
+        let* a = for_dconst d in
+        let* b = cata tl in
+        return (a :: b)
+      | DList dl ->
+        let* a = for_datum_list dl in
+        let* b = cata tl in
+        return (a :: b))
   in
-  let _ = cata operand in
-  return (VString "#undef\n")
+  let* f = cata datum_list in
+  return (VList f)
+;;
+
+let rec eval_expr context = function
+  | EConst c ->
+    (match c with
+    | CInt i -> return (VInt i)
+    | CString s -> return (VString s)
+    | CBool b -> return (VBool b))
+  | EVar v -> for_var context v
+  | EQuote q ->
+    (match q with
+    | DConst d -> for_dconst d
+    | DList dl -> for_datum_list dl)
+  | ELambda (formals, command, sequence) -> return (VLambda (formals, command, sequence))
+  | ECond (test, consequent, alternative) ->
+    for_conditional context test consequent alternative
+  | EProc_call (operator, operands) ->
+    let* opers = for_opers context operands in
+    let* oper = eval_expr context operator in
+    for_proc_call context oper opers
+
+and for_opers context operands =
+  let rec helper = function
+    | [] -> return []
+    | hd :: tl ->
+      let* e = eval_expr context hd in
+      let* r = helper tl in
+      return (e :: r)
+  in
+  helper operands
 
 and for_conditional context test cons alt =
   let* expr = eval_expr context test in
@@ -376,6 +314,87 @@ and for_lambda context formals command sequence operands =
       (match sequence with
       | None -> helper new_context [ command ]
       | Some y -> helper new_context (command :: y)))
+
+and check_if_var_in_context context var =
+  List.exists (fun x -> x.variable_name = var.variable_name) context
+
+and find_var_in_context context var_name =
+  let rec helper name = function
+    | [] -> fail UnboundVariable
+    | hd :: tl ->
+      if hd.variable_name = name then return hd.variable_value else helper name tl
+  in
+  helper var_name context
+
+and create_new_var context var_name eval_value =
+  return ({ variable_name = var_name; variable_value = eval_value } :: context)
+
+and update_var context var_name eval_value =
+  return
+    ({ variable_name = var_name; variable_value = eval_value }
+    :: List.filter (fun x -> x.variable_name <> var_name) context)
+
+and for_definition context var_name var_value =
+  let* eval_value = eval_expr context var_value in
+  match
+    check_if_var_in_context
+      context
+      { variable_name = var_name; variable_value = eval_value }
+  with
+  | false -> create_new_var context var_name eval_value
+  | true -> update_var context var_name eval_value
+
+and for_proc_call context oper opers =
+  match oper with
+  | VVar "+" -> for_add_or_mul ( + ) 0 opers
+  | VVar "-" -> for_sub_or_div ( - ) 0 opers
+  | VVar "*" -> for_add_or_mul ( * ) 1 opers
+  | VVar "/" -> for_sub_or_div ( / ) 1 opers
+  | VVar "=" -> for_comparison ( = ) opers
+  | VVar ">" -> for_comparison ( > ) opers
+  | VVar "<" -> for_comparison ( < ) opers
+  | VVar ">=" -> for_comparison ( >= ) opers
+  | VVar "<=" -> for_comparison ( <= ) opers
+  | VVar "or" -> for_or opers
+  | VVar "and" -> for_and opers
+  | VVar "max" -> for_max_or_min max opers
+  | VVar "min" -> for_max_or_min min opers
+  | VVar "not" -> for_unary_operations oper opers
+  | VVar "integer?" -> for_unary_operations oper opers
+  | VVar "boolean?" -> for_unary_operations oper opers
+  | VVar "string?" -> for_unary_operations oper opers
+  | VVar "list?" -> for_unary_operations oper opers
+  | VVar "zero?" -> for_unary_operations oper opers
+  | VVar "positive?" -> for_unary_operations oper opers
+  | VVar "negative?" -> for_unary_operations oper opers
+  | VVar "odd?" -> for_unary_operations oper opers
+  | VVar "even?" -> for_unary_operations oper opers
+  | VVar "abs" -> for_unary_operations oper opers
+  | VVar "list" -> for_list context opers
+  | VVar "apply" -> for_apply context opers
+  | VVar "display" -> for_unary_operations oper opers
+  | VVar "newline" -> for_newline opers
+  | VLambda (formals, command, sequence) ->
+    for_lambda context formals command sequence opers
+  | _ -> fail (IncorrectType "ERROR: invalid application")
+
+and for_list context opers =
+  let rec cata = function
+    | [] -> return []
+    | VVar hd :: tl ->
+      let* var = find_var_in_context context hd in
+      let* r = cata tl in
+      return (var :: r)
+    | hd :: tl ->
+      let* r = cata tl in
+      return (hd :: r)
+  in
+  let* f = cata opers in
+  return (VList f)
+
+and for_apply context = function
+  | [ x1; VList x2 ] -> for_proc_call context x1 x2
+  | _ -> fail WrongNumber
 ;;
 
 let eval_form context = function
@@ -409,8 +428,9 @@ let for_err = function
 ;;
 
 (* let () =
-  let str = {| ( display  '(^-^)  ) |} in
+  let str = {| (display(list 1 2)) |} in
   match run_program str with
-  | Ok _ -> ()
+  | Ok (ok, _) -> ()
   | Error err -> for_err err
 ;; *)
+(* Format.printf "%a\n" pp_value ok *)

@@ -7,10 +7,15 @@ let demos =
       (* n (factorial (- n 1)))))
 
 (display (factorial 0))
+(newline)
 (display (factorial 1))
+(newline)
 (display (factorial 2))
+(newline)
 (display (factorial 4))
+(newline)
 (display (factorial 5))
+(newline)
 
 (define (fib-rec n)
   (if (< n 2)
@@ -19,9 +24,13 @@ let demos =
          (fib-rec (- n 2)))))
      
 (display (fib-rec 2))
+(newline)
 (display (fib-rec 3))
+(newline)
 (display (fib-rec 4))
+(newline)
 (display (fib-rec 5))
+(newline)
 
 (define odd-positive?
   (lambda (x)
@@ -32,9 +41,20 @@ let demos =
       (else (even? (- x 1)))))) 
 
 (display (odd-positive? "string"))
+(newline)
 (display (odd-positive? -7))
+(newline)
 (display (odd-positive? 10))
+(newline)
 (display (odd-positive? 555))
+(newline)
+
+(display ((lambda (x) 
+   (list x (list (quote quote) x))) 
+  (quote 
+     (lambda (x) 
+       (list x (list (quote quote) x))))))
+
     |}
 ;;
 
