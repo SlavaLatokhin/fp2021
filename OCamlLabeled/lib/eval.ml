@@ -310,16 +310,14 @@ module Interpret (M : MONAD_FAIL) = struct
             | PLabeled name ->
               run
                 (lookup_env name lab)
-                ~ok:(fun x ->
-                  match x with
+                ~ok:(function
                   | InternalV -> return (EFun (pt, exp))
                   | _ -> helper exp)
                 ~err:(fun _ -> return (EFun (pt, exp)))
             | PVar name ->
               run
                 (lookup_env name basic)
-                ~ok:(fun x ->
-                  match x with
+                ~ok:(function
                   | InternalV -> return (EFun (pt, exp))
                   | _ -> helper exp)
                 ~err:(fun _ -> return (EFun (pt, exp)))
