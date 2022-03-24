@@ -57,6 +57,7 @@ and error =
 [@@deriving show { with_path = false }]
 
 and env = exval EnvMap.t [@@deriving show { with_path = false }]
+
 and scan_info = Info of env * env * env * id list
 
 module Interpret (M : MONAD_FAIL) = struct

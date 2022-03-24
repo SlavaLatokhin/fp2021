@@ -19,8 +19,11 @@ type bin_op =
 [@@deriving show { with_path = false }]
 
 and binding = bool * pt * exp [@@deriving show { with_path = false }]
+
 and case = pt * exp [@@deriving show { with_path = false }]
+
 and decl = DLet of binding (**  let y = 256   *) [@@deriving show { with_path = false }]
+
 and prog = decl list [@@deriving show { with_path = false }]
 
 and un_op =
