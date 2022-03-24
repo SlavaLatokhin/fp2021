@@ -144,7 +144,7 @@ let is_int_bool_str_list = function
 ;;
 
 let for_display operand =
-  let rec cata = function
+  let rec cata ppf = function
     | VInt i -> Format.printf "%d" i
     | VString s -> Format.printf "%s" s
     | VBool true -> Format.printf "#t"
@@ -154,18 +154,15 @@ let for_display operand =
     | VVar v -> Format.printf "#<procedure %s>" v
     | VList l ->
       let _ = Format.printf "(" in
-      let rec print_list = function
-        | [ x ] -> cata x
-        | hd :: tl ->
-          let _ = cata hd in
-          let _ = Format.printf " " in
-          print_list tl
+      let rec print_list ppf = function
+        | [ x ] -> cata ppf x
+        | hd :: tl -> Format.fprintf ppf "%a %a" cata hd print_list tl
         | _ -> ()
       in
-      let _ = print_list l in
+      let _ = print_list ppf l in
       Format.printf ")"
   in
-  let _ = cata operand in
+  let _ = cata Format.std_formatter operand in
   return (VString "#undef")
 ;;
 
