@@ -100,3 +100,43 @@ let%test _ =
           )
       ]
 ;;
+
+let%test _ =
+  test_parse
+    ~label:"Ref test"
+    ~code:
+      {|
+
+    let f =
+    let n = ref 0 in
+    (fun m -> let _ = n := 1 + !n in !n);;
+    let x1 = f 0;;
+    let x2 = f 0;;
+    let x3 = f 0;;
+    let x4 = f 0;;
+    let x5 = f 0;;
+
+    |}
+    ~expected:
+      [ DLet
+          ( false
+          , PVar "f"
+          , ELet
+              ( [ false, PVar "n", EApp (EVar "ref", EArg (Expr (EConst (CInt 0)))) ]
+              , EFun
+                  ( PVar "m"
+                  , ELet
+                      ( [ ( false
+                          , PWild
+                          , EApp
+                              ( EApp (EVar ":=", EVar "n")
+                              , EOp (Add, EConst (CInt 1), EApp (EVar "!", EVar "n")) ) )
+                        ]
+                      , EApp (EVar "!", EVar "n") ) ) ) )
+      ; DLet (false, PVar "x1", EApp (EVar "f", EArg (Expr (EConst (CInt 0)))))
+      ; DLet (false, PVar "x2", EApp (EVar "f", EArg (Expr (EConst (CInt 0)))))
+      ; DLet (false, PVar "x3", EApp (EVar "f", EArg (Expr (EConst (CInt 0)))))
+      ; DLet (false, PVar "x4", EApp (EVar "f", EArg (Expr (EConst (CInt 0)))))
+      ; DLet (false, PVar "x5", EApp (EVar "f", EArg (Expr (EConst (CInt 0)))))
+      ]
+;;

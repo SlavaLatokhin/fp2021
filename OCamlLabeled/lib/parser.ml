@@ -143,6 +143,7 @@ let apply_unary p =
     [ token "-" *> p >>| eunop Minus
     ; keyword "not" *> p >>| eunop Not
     ; token "+" *> p
+    ; (token "!" *> p >>= fun x -> return @@ EApp (EVar "!", x))
     ; p
     ]
 ;;

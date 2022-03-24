@@ -290,12 +290,17 @@ module Interpret (M : MONAD_FAIL) = struct
         let* evaled_ref = eval_exp env x in
         (match evaled_ref with
         | RefV k ->
-          k := RefV (ref evaled);
+          k := evaled;
           return evaled
         | _ -> fail Ref_error)
       | EVar "ref" ->
         let* evaled = eval_exp env exp2 in
         return (RefV (ref evaled))
+      | EVar "!" ->
+        let* evaled = eval_exp env exp2 in
+        (match evaled with
+        | RefV x -> return !x
+        | _ -> fail Ref_error)
       | _ ->
         let* Info (lab, opt, basic, keys), new_state, body =
           scan_app env (EApp (exp1, exp2))

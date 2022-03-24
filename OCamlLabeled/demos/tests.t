@@ -9,7 +9,7 @@
   val ans = 8
   =====================================
   $ ./tests.exe <<-EOF
-  > let rec fold_left ~f init = function
+  > let rec fold_left ~f init = function 
   >  | [] -> init
   >  | hd :: tl -> fold_left ~f:f (f init hd) tl;;
   > let k = fold_left 0 [1;2;3] ~f:(fun acc x ->  acc + x * x);;
@@ -56,3 +56,10 @@
   > let x3 = f 0;;
   > let x4 = f 0;;
   > let x5 = f 0;;
+  val f = <fun>
+  val x1 = 1
+  val x2 = 2
+  val x3 = 3
+  val x4 = 4
+  val x5 = 5
+  =====================================
