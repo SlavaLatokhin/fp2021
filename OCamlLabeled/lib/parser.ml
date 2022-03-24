@@ -207,9 +207,9 @@ let pwild = token "_" >>| pwild
 let pconst = const >>| pconst
 
 type pdispatch =
-  { tuple : pdispatch -> pt t
-  ; other : pdispatch -> pt t
-  ; pt : pdispatch -> pt t
+  { tuple: pdispatch -> pt t
+  ; other: pdispatch -> pt t
+  ; pt: pdispatch -> pt t
   }
 
 let pack e =
@@ -246,10 +246,10 @@ let pack e =
 let pt e = (pack e).pt (pack e)
 
 type edispatch =
-  { key : edispatch -> exp t
-  ; tuple : edispatch -> exp t
-  ; exp : edispatch -> exp t
-  ; op : edispatch -> exp t
+  { key: edispatch -> exp t
+  ; tuple: edispatch -> exp t
+  ; exp: edispatch -> exp t
+  ; op: edispatch -> exp t
   }
 
 let pack =
