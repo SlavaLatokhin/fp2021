@@ -204,8 +204,7 @@ let for_dconst = function
 let rec for_datum_list datum_list =
   let* a =
     mapm
-      (fun x ->
-        match x with
+      (function
         | DConst d -> for_dconst d
         | DList dl -> for_datum_list dl)
       datum_list
@@ -239,8 +238,7 @@ let update_var context variable_name variable_value =
 let for_list context opers =
   let* a =
     mapm
-      (fun x ->
-        match x with
+      (function
         | VVar var -> find_var_in_context context var
         | y -> return y)
       opers
