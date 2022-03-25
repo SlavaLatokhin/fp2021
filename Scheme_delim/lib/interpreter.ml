@@ -4,6 +4,7 @@ open Ast
 let ( let* ) m f = Result.bind m f
 let return = Result.ok
 let fail = Result.error
+let ( <*> ) f x = Result.bind f (fun f -> Result.bind x (fun x -> Result.Ok (f x)))
 
 type value =
   | VInt of int
@@ -188,6 +189,11 @@ let for_unary_operations = function
   | _ -> fail (IncorrectType "Wrong number of arguments")
 ;;
 
+let rec mapm f = function
+  | [] -> return []
+  | x :: xs -> return List.cons <*> f x <*> mapm f xs
+;;
+
 let for_dconst = function
   | DInt i -> return (VInt i)
   | DString s -> return (VString s)
@@ -196,21 +202,15 @@ let for_dconst = function
 ;;
 
 let rec for_datum_list datum_list =
-  let rec cata = function
-    | [] -> return []
-    | hd :: tl ->
-      (match hd with
-      | DConst d ->
-        let* a = for_dconst d in
-        let* b = cata tl in
-        return (a :: b)
-      | DList dl ->
-        let* a = for_datum_list dl in
-        let* b = cata tl in
-        return (a :: b))
+  let* a =
+    mapm
+      (fun x ->
+        match x with
+        | DConst d -> for_dconst d
+        | DList dl -> for_datum_list dl)
+      datum_list
   in
-  let* f = cata datum_list in
-  return (VList f)
+  return (VList a)
 ;;
 
 let check_if_var_in_context context var =
@@ -237,18 +237,15 @@ let update_var context variable_name variable_value =
 ;;
 
 let for_list context opers =
-  let rec cata = function
-    | [] -> return []
-    | VVar hd :: tl ->
-      let* var = find_var_in_context context hd in
-      let* r = cata tl in
-      return (var :: r)
-    | hd :: tl ->
-      let* r = cata tl in
-      return (hd :: r)
+  let* a =
+    mapm
+      (fun x ->
+        match x with
+        | VVar var -> find_var_in_context context var
+        | y -> return y)
+      opers
   in
-  let* f = cata opers in
-  return (VList f)
+  return (VList a)
 ;;
 
 let create_new_context context variable_name variable_value =
@@ -272,24 +269,7 @@ let rec eval_expr context = function
     let* oper = eval_expr context operator in
     for_proc_call context oper opers
 
-and for_opers context operands =
-  let rec helper = function
-    | [] -> return []
-    | hd :: tl ->
-      let* e = eval_expr context hd in
-      let* r = helper tl in
-      return (e :: r)
-  in
-  helper operands
-
-(* and for_opers context operands =
-  return
-    (List.map
-       (fun x ->
-         match eval_expr context x with
-         | Ok x -> x
-         | Error _ -> err)
-       operands) *)
+and for_opers context operands = mapm (fun x -> eval_expr context x) operands
 
 and for_conditional context test cons alt =
   let* expr = eval_expr context test in
@@ -409,7 +389,11 @@ let for_err fmt = function
 ;;
 
 (* let () =
-  let str = {| (-) |} in
+  let str =
+    {|  
+
+     |}
+  in
   match run_program str with
   | Ok _ -> ()
   | Error err -> for_err Format.err_formatter err
