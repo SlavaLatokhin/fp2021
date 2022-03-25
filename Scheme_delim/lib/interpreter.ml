@@ -37,35 +37,24 @@ let for_var context var =
   helper context
 ;;
 
-let for_add_or_mul operator start opers =
+let eval_add_mul_sub_div operator start danger_of_div_zero opers =
   let rec cata answer = function
     | [] -> return (VInt answer)
     | hd :: tl ->
       (match hd with
-      | VInt i -> cata (operator i answer) tl
+      | VInt 0 when danger_of_div_zero -> fail DivisionByZero
+      | VInt i -> cata (operator answer i) tl
       | _ -> fail (IncorrectType "ERROR: real number required"))
   in
   cata start opers
 ;;
 
-let eval_sub_or_div opers head operator flag =
-  let rec cata answer = function
-    | [] -> return (VInt answer)
-    | hd :: tl ->
-      (match hd with
-      | VInt 0 when flag = 1 -> fail DivisionByZero
-      | VInt i -> cata (operator answer i) tl
-      | _ -> fail (IncorrectType "ERROR: real number required"))
-  in
-  cata head opers
-;;
-
-let for_sub_or_div operator start = function
+let for_sub_or_div operator start danger_of_div_zero = function
   | [] -> fail WrongNumber
-  | [ x ] -> eval_sub_or_div [ x ] start operator start
+  | [ x ] -> eval_add_mul_sub_div operator start danger_of_div_zero [ x ]
   | hd :: tl ->
     (match hd with
-    | VInt i -> eval_sub_or_div tl i operator start
+    | VInt i -> eval_add_mul_sub_div operator i danger_of_div_zero tl
     | _ -> fail (IncorrectType "ERROR: real number required"))
 ;;
 
@@ -135,14 +124,6 @@ let for_max_or_min operator = function
     | _ -> fail (IncorrectType "ERROR: real number required"))
 ;;
 
-let is_int_bool_str_list = function
-  | 0, VInt _ -> return (VBool true)
-  | 1, VBool _ -> return (VBool true)
-  | 2, VString _ -> return (VBool true)
-  | 3, VList _ -> return (VBool true)
-  | _ -> return (VBool false)
-;;
-
 let for_display operand =
   let rec cata ppf = function
     | VInt i -> Format.printf "%d" i
@@ -180,10 +161,22 @@ let for_unary_operations operator = function
       (match operand with
       | VBool b when b = false -> return (VBool true)
       | _ -> return (VBool false))
-    | VVar "integer?" -> is_int_bool_str_list (0, operand)
-    | VVar "boolean?" -> is_int_bool_str_list (1, operand)
-    | VVar "string?" -> is_int_bool_str_list (2, operand)
-    | VVar "list?" -> is_int_bool_str_list (3, operand)
+    | VVar "integer?" ->
+      (match operand with
+      | VInt _ -> return (VBool true)
+      | _ -> return (VBool false))
+    | VVar "boolean?" ->
+      (match operand with
+      | VBool _ -> return (VBool true)
+      | _ -> return (VBool false))
+    | VVar "string?" ->
+      (match operand with
+      | VString _ -> return (VBool true)
+      | _ -> return (VBool false))
+    | VVar "list?" ->
+      (match operand with
+      | VList _ -> return (VBool true)
+      | _ -> return (VBool false))
     | VVar "zero?" -> return (VBool (operand = VInt 0))
     | VVar "positive?" -> return (VBool (operand > VInt 0))
     | VVar "negarive?" -> return (VBool (operand < VInt 0))
@@ -292,7 +285,7 @@ and for_lambda context formals command sequence operands =
     | true ->
       let formals_var =
         List.map2
-          (fun x y -> { variable_name = x; variable_value = y })
+          (fun variable_name variable_value -> { variable_name; variable_value })
           vars_name
           operands
       in
@@ -323,13 +316,13 @@ and find_var_in_context context var_name =
   in
   helper var_name context
 
-and create_new_var context var_name eval_value =
-  return ({ variable_name = var_name; variable_value = eval_value } :: context)
+and create_new_var context variable_name variable_value =
+  return ({ variable_name; variable_value } :: context)
 
-and update_var context var_name eval_value =
+and update_var context variable_name variable_value =
   return
-    ({ variable_name = var_name; variable_value = eval_value }
-    :: List.filter (fun x -> x.variable_name <> var_name) context)
+    ({ variable_name; variable_value }
+    :: List.filter (fun x -> x.variable_name <> variable_name) context)
 
 and for_definition context var_name var_value =
   let* eval_value = eval_expr context var_value in
@@ -343,10 +336,10 @@ and for_definition context var_name var_value =
 
 and for_proc_call context oper opers =
   match oper with
-  | VVar "+" -> for_add_or_mul ( + ) 0 opers
-  | VVar "-" -> for_sub_or_div ( - ) 0 opers
-  | VVar "*" -> for_add_or_mul ( * ) 1 opers
-  | VVar "/" -> for_sub_or_div ( / ) 1 opers
+  | VVar "+" -> eval_add_mul_sub_div ( + ) 0 false opers
+  | VVar "-" -> for_sub_or_div ( - ) 0 false opers
+  | VVar "*" -> eval_add_mul_sub_div ( * ) 1 false opers
+  | VVar "/" -> for_sub_or_div ( / ) 1 true opers
   | VVar "=" -> for_comparison ( = ) opers
   | VVar ">" -> for_comparison ( > ) opers
   | VVar "<" -> for_comparison ( < ) opers
@@ -356,20 +349,20 @@ and for_proc_call context oper opers =
   | VVar "and" -> for_and opers
   | VVar "max" -> for_max_or_min max opers
   | VVar "min" -> for_max_or_min min opers
-  | VVar "not" -> for_unary_operations oper opers
-  | VVar "integer?" -> for_unary_operations oper opers
-  | VVar "boolean?" -> for_unary_operations oper opers
-  | VVar "string?" -> for_unary_operations oper opers
-  | VVar "list?" -> for_unary_operations oper opers
-  | VVar "zero?" -> for_unary_operations oper opers
-  | VVar "positive?" -> for_unary_operations oper opers
-  | VVar "negative?" -> for_unary_operations oper opers
-  | VVar "odd?" -> for_unary_operations oper opers
-  | VVar "even?" -> for_unary_operations oper opers
-  | VVar "abs" -> for_unary_operations oper opers
+  | VVar "not"
+  | VVar "integer?"
+  | VVar "boolean?"
+  | VVar "string?"
+  | VVar "list?"
+  | VVar "zero?"
+  | VVar "positive?"
+  | VVar "negative?"
+  | VVar "odd?"
+  | VVar "even?"
+  | VVar "abs"
+  | VVar "display" -> for_unary_operations oper opers
   | VVar "list" -> for_list context opers
   | VVar "apply" -> for_apply context opers
-  | VVar "display" -> for_unary_operations oper opers
   | VVar "newline" -> for_newline opers
   | VLambda (formals, command, sequence) ->
     for_lambda context formals command sequence opers
@@ -425,9 +418,9 @@ let for_err = function
 ;;
 
 (* let () =
-  let str = {| (display(list 1 2)) |} in
+  let str = {| (display(* 3 0)) |} in
   match run_program str with
-  | Ok (ok, _) -> ()
+  | Ok _ -> ()
   | Error err -> for_err err
 ;; *)
-(* Format.printf "%a\n" pp_value ok *)
+(* Format.printf "%a\n" pp_value ok*)

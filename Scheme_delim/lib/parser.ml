@@ -159,8 +159,14 @@ let definition =
 let prog = sep_by spaces (definition <|> (expr >>| fun x -> FExpr x)) <* spaces
 
 (* let () =
-  let str = {| ( display  '(^-^)  )) |} in
+  let str =
+    {| ((lambda (x) 
+   (list x (list (quote quote) x))) 
+  (quote 
+     (lambda (x) 
+       (list x (list (quote quote) x))))) |}
+  in
   match parse_string ~consume:All prog str with
   | Ok v -> Format.printf "%a\n" pp_program v
-  | Error _ -> print_endline "Ты старался, идиот!\n"
+  | Error _ -> Format.printf "ERROR: invalid syntax\n"
 ;; *)
