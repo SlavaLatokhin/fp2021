@@ -2,7 +2,7 @@
  (name demoFunc)
  (modules demoFunc)
  (public_name demoFunc)
- (libraries Scheme_delim.Lib))
+ (libraries Scheme_delim.Lib stdio))
 
 (cram
  (deps ./demoFunc.exe))
