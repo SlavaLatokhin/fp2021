@@ -1,9 +1,10 @@
 open Interpreter
+(* open Ast *)
 
 (* let () =
-  let input_str = {| (display "(^-^)") |} in
+  let input_str = {|  (display "(^-^)")  |} in
   match parse_and_run_prog input_str with
-  | Ok _ ->
+  | Ok (_, _) ->
     ()
     (* let _ = Format.printf "Actual ctx: \n" in
     let _ =
@@ -12,10 +13,11 @@ open Interpreter
         ctx.vars
     in
     Format.printf "\nActual ans: %a" pp_value ans *)
-  | Error err -> Printf.printf "%s" err
+    (* () *)
+  | Error (ERROR err) -> Printf.printf "%s" err
 ;; *)
 
-(* open Ast
+(*
 open Opal
 open Parser
 
@@ -56,6 +58,12 @@ let%test _ =
   let input_str = {| (+ 1 2 3 4 5) |} in
   let expr = parse_and_run_prog input_str in
   test_suc input_str expr (VInt 15)
+;;
+
+let%test _ =
+  let input_str = {| (- 15 1 2 3 4 5) |} in
+  let expr = parse_and_run_prog input_str in
+  test_suc input_str expr (VInt 0)
 ;;
 
 let%test _ =

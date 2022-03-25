@@ -7,7 +7,7 @@ open Scheme_call_lib.Interpreter
   Mutual recursion 
 *)
 
-let recursion =
+let scheme_code =
   {|
 (define factorial-aps
   (lambda (n answer)
@@ -82,7 +82,7 @@ let recursion =
 ;;
 
 let () =
-  match parse_and_run_prog recursion with
+  match parse_and_run_prog scheme_code with
   | Ok _ -> ()
-  | Error err -> Printf.printf "%s" err
+  | Error (ERROR err) -> Printf.printf "%s" err
 ;;

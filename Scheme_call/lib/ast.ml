@@ -25,8 +25,8 @@ and expr =
   | Var of variable (* Переменная *)
   | Quote of datum (* '(<datum> list) или (quote <datum> list)*)
   | Const of const (* 1, "word", #t *)
-  | Proc_call of operator * expr list (* Вызов любой функции, созданной пользователем или уже имеющейся, например: (+ 1 1) *)
-  | Lam of formals * expr (*   (lambda <formals> <body>)  *)
+  | ProcCall of operator * expr list (* Вызов любой функции, созданной пользователем или уже имеющейся, например: (+ 1 1) *)
+  | Lam of formals * expr * expr list (*   (lambda <formals> <body>)  *)
   | Cond of expr * expr * expr option
 (* (if <test> <consequent> <alternate>) *)
 

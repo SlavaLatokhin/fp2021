@@ -46,7 +46,7 @@ let parens_id = between (token "(" >> spaces) (token ")")
 let ( <~~> ) x y = x >>= fun r -> y >>= fun rs -> return (r, rs)
 
 let operator = function
-  | hd :: tl -> return (Proc_call (Op hd, tl))
+  | hd :: tl -> return (ProcCall (Op hd, tl))
   | _ -> mzero
 ;;
 
@@ -113,7 +113,8 @@ and lambda input =
     (token "lambda"
     >> spaces
     >> formals
-    >>= fun f -> spaces >> expr => fun e -> Lam (f, e))
+    >>= fun f -> spaces >> many1 expr => fun exprs -> Lam (f, List.hd exprs, List.tl exprs)
+    )
     input
 
 and formals =
@@ -131,21 +132,22 @@ and let_expr input =
          (token ")")
          (many (between (token "(" >> spaces) (token ")") (identifier <~~> expr)))
     >>= fun l ->
-    expr
+    many1 expr
     => fun expr ->
     let names, objs = List.split l in
-    Proc_call (Op (Lam (FVarList names, expr)), objs))
+    ProcCall (Op (Lam (FVarList names, List.hd expr, List.tl expr)), objs))
     input
 ;;
 
 let def3 input =
-  (parens_id (many identifier)
+  (parens_id (many1 identifier)
   >>= fun fs ->
-  expr
-  >>= fun expression ->
+  many1 expr
+  >>= fun expr ->
   match fs with
   | [] -> mzero
-  | _ -> return (Def (List.hd fs, Lam (FVarList (List.tl fs), expression))))
+  | _ ->
+    return (Def (List.hd fs, Lam (FVarList (List.tl fs), List.hd expr, List.tl expr))))
     input
 
 and def2 input =

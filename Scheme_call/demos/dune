@@ -4,5 +4,11 @@
  (public_name demoRecursion)
  (libraries Scheme_call.Lib))
 
+(executable
+ (name demoParse)
+ (modules demoParse)
+ (public_name demoParse)
+ (libraries Scheme_call.Lib stdio))
+
 (cram
- (deps ./demoRecursion.exe))
+ (deps ./demoRecursion.exe ./demoParse.exe))
