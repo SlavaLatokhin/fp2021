@@ -13,7 +13,7 @@ Some implementations of factorial algoritms
   > (display (= 4
   > (+ 1 (call/cc
   > (lambda (ret)
-  > (+ 2 (k 3)))))))
+  > (+ 2 (ret 3)))))))
   > (newline)
   > 
   > (define (f return)

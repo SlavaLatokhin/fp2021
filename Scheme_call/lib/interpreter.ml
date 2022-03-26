@@ -94,49 +94,30 @@ module Interpret = struct
     ]
   ;;
 
-  let rec interpr_expr ctx = function
-    | Var v ->
-      (match find_var ctx v with
-      | Some var -> return var.value
-      | None ->
-        (match v with
-        | vv when List.mem vv (bin_ops @ un_ops) -> return (VVar v)
-        | _ -> error (Err (Printf.sprintf "Exception: variable %s is not bound\n" v))))
-    | Quote (DConst c) -> return (interpr_datum c)
-    | Quote (List l) -> return (VList (interpr_dlist l))
-    | Const (Int x) -> return (VInt x)
-    | Const (Bool x) -> return (VBool x)
-    | Const (String x) -> return (VString x)
-    | Lam (formals, expr, exprs) -> return (VLambda (formals, expr :: exprs))
-    | ProcCall (Op op_expr, objs) -> interpr_proc_call ctx op_expr objs
-    | Cond (test, conseq, alter) -> interpr_if_condionals ctx test conseq alter
-
-  and interpr_datum = function
+  let interpr_datum = function
     | DInt x -> VInt x
     | DBool x -> VBool x
     | DString x -> VString x
+  ;;
 
-  and interpr_dlist = function
-    | hd :: tl ->
-      (match hd with
-      | DConst d -> List.cons (interpr_datum d) (interpr_dlist tl)
-      | List l -> List.cons (VList (interpr_dlist l)) (interpr_dlist tl))
-    | [] -> []
+  let rec interpr_dlist xs =
+    List.map
+      (function
+        | DConst d -> interpr_datum d
+        | List l -> VList (interpr_dlist l))
+      xs
+  ;;
 
-  and interpr_proc_call ctx op_expr objs =
-    let* op = interpr_expr ctx op_expr in
-    match op with
-    | VEscaper v ->
-      let* ans = interpr_expr ctx (ProcCall (Op v, objs)) in
-      error (Escaper ans)
-    | VPreprocValue v -> return (VPreprocValue (VProcCall (v, exs_to_prep_vs objs)))
-    | VVar v when List.mem v un_ops -> interpr_un_expr ctx v objs
-    | VVar v -> interpr_bin_expr ctx v objs
-    | VLambda (FVarList formals, exprs) -> interpr_lambda_vars ctx exprs formals objs
-    | VLambda (FVar formal, exprs) -> interpr_lambda_var ctx exprs formal objs
-    | _ -> error (Err "Exception: attempt to apply non-procedure value\n")
+  let find_var_for_lambda l_vars l_name =
+    List.find_map
+      (fun var ->
+        match var.l_name with
+        | var_name when String.equal var_name l_name -> Some var.expr
+        | _ -> None)
+      l_vars
+  ;;
 
-  and substitute_vars l_vars = function
+  let rec substitute_vars l_vars = function
     | Var v ->
       (match find_var_for_lambda l_vars v with
       | Some expr -> expr
@@ -164,14 +145,166 @@ module Interpret = struct
     | Cond (test, conseq, None) ->
       Cond (substitute_vars l_vars test, substitute_vars l_vars conseq, None)
     | Quote d -> Quote d
+  ;;
 
-  and find_var_for_lambda l_vars l_name =
+  let find_var ctx name =
     List.find_map
       (fun var ->
-        match var.l_name with
-        | var_name when String.equal var_name l_name -> Some var.expr
+        match var.name with
+        | var_name when String.equal var_name name -> Some var
         | _ -> None)
-      l_vars
+      ctx.vars
+  ;;
+
+  let create_or_update_var ctx var =
+    match find_var ctx var.name with
+    | Some _ ->
+      let vars =
+        var
+        :: List.find_all
+             (fun v ->
+               match v.name with
+               | v_name when String.equal v_name var.name -> false
+               | _ -> true)
+             ctx.vars
+      in
+      return { vars }
+    | None -> return { vars = var :: ctx.vars }
+  ;;
+
+  let interpr_display x =
+    let rec helper_display = function
+      | VString v -> v
+      | VInt v -> Base.string_of_int v
+      | VBool true -> "#t"
+      | VBool false -> "#f"
+      | VList v ->
+        let rec helper = function
+          | [ y ] -> helper_display y
+          | hd :: tl -> Printf.sprintf "%s %s" (helper_display hd) (helper tl)
+          | _ -> ""
+        in
+        Printf.sprintf "(%s)" @@ helper v
+      | VVar v -> "#<procedure >" ^ v
+      | VLambda _ -> "#<procedure>"
+      | VVoid -> "#<void>"
+      | _ -> ""
+    in
+    let _ = Printf.printf "%s" (helper_display x) in
+    return VVoid
+
+  and interpr_newline = function
+    | [] ->
+      let _ = Printf.printf "\n" in
+      return VVoid
+    | _ -> error (Err "Exception in newline: incorrect argument count\n")
+
+  and l_car = function
+    | hd :: _ -> return hd
+    | [] -> error (Err "Exception in car: () is not a pair\n")
+
+  and l_cdr = function
+    | _ :: tl -> return (VList tl)
+    | [] -> error (Err "Exception in cdr: () is not a pair\n")
+
+  and is_pair = function
+    | VList xs when List.length xs != 0 -> return (VBool true)
+    | _ -> return (VBool false)
+
+  and is_list = function
+    | VList _ -> return (VBool true)
+    | _ -> return (VBool false)
+
+  and is_null = function
+    | VList [] -> return (VBool true)
+    | _ -> return (VBool false)
+
+  and is_procedure = function
+    | VVar v when List.mem v (bin_ops @ un_ops) -> return (VBool true)
+    | VLambda _ -> return (VBool true)
+    | _ -> return (VBool false)
+
+  and interpr_bool_value = function
+    | VBool false -> false
+    | _ -> true
+
+  and is_num = function
+    | VInt _ -> return (VBool true)
+    | _ -> return (VBool false)
+
+  and is_bool = function
+    | VBool _ -> return (VBool true)
+    | _ -> return (VBool false)
+  ;;
+
+  let create_empty_ctx = { vars = [] }
+  let ex_to_prep_v expr = VPreprocExpr expr
+  let exs_to_prep_vs exprs = List.map ex_to_prep_v exprs
+
+  let value_to_expr f = function
+    | VPreprocExpr x -> return x
+    | VPreprocValue x -> f x
+    | VBool x -> return (Const (Bool x))
+    | VInt x -> return (Const (Int x))
+    | VString x -> return (Const (String x))
+    | VVar x -> return (Var x)
+    | VList x ->
+      let* l = mapm f x in
+      return (ProcCall (Op (Var "list"), l))
+    | VLambda (formals, exprs) -> return (Lam (formals, List.hd exprs, List.tl exprs))
+    | VProcCall (v, vs) ->
+      let* oper = f v in
+      let* objs = mapm f vs in
+      return (ProcCall (Op oper, objs))
+    | _ -> error (Err "Yet not implemented in call/cc")
+  ;;
+
+  let rec call_cc1 = function
+    | VCallCC _ -> return (Var "var_reserved_for_call_cc_call")
+    | v -> value_to_expr call_cc1 v
+  ;;
+
+  let rec call_cc2 expr = function
+    | VCallCC v ->
+      return
+        (ProcCall
+           ( Op v
+           , [ ProcCall
+                 ( Op (Var "escaper")
+                 , [ Lam (FVarList [ "var_reserved_for_call_cc_call" ], expr, []) ] )
+             ] ))
+    | v -> value_to_expr (call_cc2 expr) v
+  ;;
+
+  let rec interpr_expr ctx = function
+    | Var v ->
+      (match find_var ctx v with
+      | Some var -> return var.value
+      | None ->
+        (match v with
+        | vv when List.mem vv (bin_ops @ un_ops) -> return (VVar v)
+        | _ -> error (Err (Printf.sprintf "Exception: variable %s is not bound\n" v))))
+    | Quote (DConst c) -> return (interpr_datum c)
+    | Quote (List l) -> return (VList (interpr_dlist l))
+    | Const (Int x) -> return (VInt x)
+    | Const (Bool x) -> return (VBool x)
+    | Const (String x) -> return (VString x)
+    | Lam (formals, expr, exprs) -> return (VLambda (formals, expr :: exprs))
+    | ProcCall (Op op_expr, objs) -> interpr_proc_call ctx op_expr objs
+    | Cond (test, conseq, alter) -> interpr_if_condionals ctx test conseq alter
+
+  and interpr_proc_call ctx op_expr objs =
+    let* op = interpr_expr ctx op_expr in
+    match op with
+    | VEscaper v ->
+      let* ans = interpr_expr ctx (ProcCall (Op v, objs)) in
+      error (Escaper ans)
+    | VPreprocValue v -> return (VPreprocValue (VProcCall (v, exs_to_prep_vs objs)))
+    | VVar v when List.mem v un_ops -> interpr_un_expr ctx v objs
+    | VVar v -> interpr_bin_expr ctx v objs
+    | VLambda (FVarList formals, exprs) -> interpr_lambda_vars ctx exprs formals objs
+    | VLambda (FVar formal, exprs) -> interpr_lambda_var ctx exprs formal objs
+    | _ -> error (Err "Exception: attempt to apply non-procedure value\n")
 
   and interpr_lambda_expr ctx =
     let rec helper acc = function
@@ -225,77 +358,10 @@ module Interpret = struct
         | "car", VList l -> l_car l
         | "cdr", VList l -> l_cdr l
         | "length", VList l -> return (VInt (List.length l))
-        (* | "call-with-current-continuation", VLambda (formals, expr)
-      | "call/cc", VLambda (formals, expr) -> () *)
         | _ ->
           error (Err (Printf.sprintf "Exception in %s: invalid variable type\n" op_str)))
       | _ ->
         error (Err (Printf.sprintf "Exception in %s: incorrect argument count\n" op_str)))
-
-  and interpr_display x =
-    let rec helper_display = function
-      | VString v -> Printf.printf "%s" v
-      | VInt v -> Printf.printf "%s" (Base.string_of_int v)
-      | VBool true -> Printf.printf "#t"
-      | VBool false -> Printf.printf "#f"
-      | VList v ->
-        let _ = Printf.printf "(" in
-        let rec helper = function
-          | [ y ] ->
-            let _ = helper_display y in
-            ()
-          | hd :: tl ->
-            let _ = helper_display hd in
-            let _ = Printf.printf " " in
-            helper tl
-          | _ -> ()
-        in
-        let _ = helper v in
-        Printf.printf ")"
-      | VVar v -> Printf.printf "#<procedure %s>" v
-      | VLambda _ -> Printf.printf "#<procedure>"
-      | VVoid -> Printf.printf "#<void>"
-      | _ -> ()
-    in
-    let _ = helper_display x in
-    return VVoid
-
-  and l_car = function
-    | hd :: _ -> return hd
-    | [] -> error (Err "Exception in car: () is not a pair\n")
-
-  and l_cdr = function
-    | _ :: tl -> return (VList tl)
-    | [] -> error (Err "Exception in cdr: () is not a pair\n")
-
-  and is_pair = function
-    | VList xs when List.length xs != 0 -> return (VBool true)
-    | _ -> return (VBool false)
-
-  and is_list = function
-    | VList _ -> return (VBool true)
-    | _ -> return (VBool false)
-
-  and is_null = function
-    | VList [] -> return (VBool true)
-    | _ -> return (VBool false)
-
-  and is_procedure = function
-    | VVar v when List.mem v (bin_ops @ un_ops) -> return (VBool true)
-    | VLambda _ -> return (VBool true)
-    | _ -> return (VBool false)
-
-  and interpr_bool_value = function
-    | VBool false -> false
-    | _ -> true
-
-  and is_num = function
-    | VInt _ -> return (VBool true)
-    | _ -> return (VBool false)
-
-  and is_bool = function
-    | VBool _ -> return (VBool true)
-    | _ -> return (VBool false)
 
   and interpr_bin_expr ctx op_str =
     match op_str with
@@ -452,66 +518,6 @@ module Interpret = struct
     | VBool false, Some alt -> interpr_expr ctx alt
     | VBool false, None -> return VVoid
     | _ -> interpr_expr ctx cons
-
-  and create_empty_ctx = { vars = [] }
-
-  and find_var ctx name =
-    List.find_map
-      (fun var ->
-        match var.name with
-        | var_name when String.equal var_name name -> Some var
-        | _ -> None)
-      ctx.vars
-
-  and create_or_update_var ctx vv =
-    match find_var ctx vv.name with
-    | Some var ->
-      let vars =
-        vv
-        :: List.find_all
-             (fun v ->
-               match v.name with
-               | v_name when String.equal v_name var.name -> false
-               | _ -> true)
-             ctx.vars
-      in
-      return { vars }
-    | None -> return { vars = vv :: ctx.vars }
-
-  and exs_to_prep_vs exprs = List.map ex_to_prep_v exprs
-  and ex_to_prep_v expr = VPreprocExpr expr
-
-  and call_cc1 = function
-    | VCallCC _ -> return (Var "var_reserved_for_call_cc_call")
-    | v -> value_to_expr call_cc1 v
-
-  and call_cc2 expr = function
-    | VCallCC v ->
-      return
-        (ProcCall
-           ( Op v
-           , [ ProcCall
-                 ( Op (Var "escaper")
-                 , [ Lam (FVarList [ "var_reserved_for_call_cc_call" ], expr, []) ] )
-             ] ))
-    | v -> value_to_expr (call_cc2 expr) v
-
-  and value_to_expr f = function
-    | VPreprocExpr x -> return x
-    | VPreprocValue x -> f x
-    | VBool x -> return (Const (Bool x))
-    | VInt x -> return (Const (Int x))
-    | VString x -> return (Const (String x))
-    | VVar x -> return (Var x)
-    | VList x ->
-      let* l = mapm f x in
-      return (ProcCall (Op (Var "list"), l))
-    | VLambda (formals, exprs) -> return (Lam (formals, List.hd exprs, List.tl exprs))
-    | VProcCall (v, vs) ->
-      let* oper = f v in
-      let* objs = mapm f vs in
-      return (ProcCall (Op oper, objs))
-    | _ -> error (Err "Yet not implemented in call/cc")
 
   and expr_call ctx expr =
     match interpr_expr ctx expr with
