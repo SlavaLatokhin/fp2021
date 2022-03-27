@@ -12,6 +12,9 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          #- ubuntu-18.04
+          #- macos-latest
+          #- windows-latest
         ocaml-compiler:
           #- 4.10.x
           #- ocaml-variants.4.11.2+flambda
@@ -24,6 +27,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+
+      - run: sudo apt-get update -y
+        if: matrix.os != 'macos-latest'
+
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.7.0
         with:
@@ -62,7 +69,7 @@ jobs:
 
       - name: Naive linting
         run: |
-          cd ${{ env.latest }} && ../lint_filesystem.py ${{ env.latest }}
+          cd ${{ env.latest }} && python3 ../lint_filesystem.py ${{ env.latest }}
 
       - name: Checking ocamlformat
         run: |

@@ -1,0 +1,35 @@
+(lang dune 2.8)
+
+(generate_opam_files true)
+
+(cram enable)
+
+(license LGPL-3.0-or-later)
+
+(authors "Sheremet Irina")
+
+(maintainers "Sheremet Irina")
+
+(bug_reports "https://github.com/IraSheremet/fp2021/pulls")
+
+(homepage "https://github.com/IraSheremet/fp2021")
+
+(package
+ (name Scheme_delim)
+ (synopsis "An interpreter for Scheme")
+ (description
+  "Scheme language interpreter with delimited continuations (for now without delimited continuations)")
+ (version 0.1)
+ (depends
+  dune
+  angstrom
+  (ppx_inline_test :with-test)
+  qcheck-core
+  ppx_expect
+  ppx_deriving
+  ppx_show
+  (odoc :with-doc)
+  (ocamlformat :build)
+  base
+  ; After adding dependencies to 'dune' files and the same dependecies here too
+  ))
