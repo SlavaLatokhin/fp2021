@@ -125,3 +125,36 @@ $ ./demoParse.exe <<-EOF
   $ ./demoParse.exe <<-EOF
   > (display (+ 1 (call/cc (lambda (l) (* 10 (l (call/cc (lambda (k) (/ 15 (k 5))))))))) )
   6
+
+
+
+
+
+  $ ./demoParse.exe <<-EOF
+  > (define list-product
+  > (lambda (s)
+  > (let recur ((s s))
+  > (if (null? s) 1
+  > (* (car s) (recur (cdr s)))))))
+  > 
+  > (display (list-product '(1 2 3 4 5)))
+  > (newline)
+  > 
+  > (define list-product2
+  > (lambda (s)
+  > (call/cc
+  > (lambda (exit)
+  > (let recur ((s s))
+  > (if (null? s) 1
+  > (if (= (car s) 0) (exit "NULL")
+  > (* (car s) (recur (cdr s))))))))))
+  > 
+  > (display (list-product2 '(1 2 3 4 5)))
+  > (newline)
+  > 
+  > (display (list-product2 '(1 2 3 4 0 5)))
+  > (newline)
+  120
+  120
+  NULL
+

@@ -27,7 +27,6 @@ type value =
   (*_________________________________________*)
   | VCallCC of prep_expr
   | VCallCCLam of int * prep_expr
-  | VCallCC2 of int
   | VEscaper of prep_expr
   | VPreprocValue of value
   | VPreprocExpr of prep_expr

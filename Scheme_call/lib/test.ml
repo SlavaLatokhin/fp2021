@@ -2,16 +2,16 @@ open Interpreter
 
 (* let () =
   let input_str =
-    {|  (display '(+ 1 '(+ 3 4)))  |}
-    (* {|  (define a 1)   (display (((lambda () (define loop (lambda (numbers nonneg neg) (cond ((null? numbers) (list nonneg neg))
-        ((>= (car numbers) 0)
-         (loop (cdr numbers)
-               (cons (car numbers) nonneg)
-               neg))
-        ((< (car numbers) 0)
-         (loop (cdr numbers)  
-               nonneg
-               (cons (car numbers) neg))))   )) loop)) '(3 -2 1 6 -5) '() '()))  |} *)
+    (* {|  (display '(+ 1 '(+ 3 4)))  |} *)
+    {|  (define list-product
+  (lambda (s)
+    (call/cc
+      (lambda (exit)
+        (let recur ((s s))
+          (if (null? s) 1
+              (if (= (car s) 0) (exit 0)
+                  (* (car s) (recur (cdr s))))))))))
+      (display (list-product '(1 2 3 4 5)))  |}
   in
   match parse_and_run_prog input_str with
   | Ok (_, _) ->

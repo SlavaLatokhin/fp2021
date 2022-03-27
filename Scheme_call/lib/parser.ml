@@ -171,15 +171,23 @@ and let_expr_with_tag input =
   let names, objs = List.split l in
   ProcCall
     ( Op
+        (Lam
+           ( FVarList []
+           , [ tag, Lam (FVarList names, defs, List.hd exprs, List.tl exprs) ]
+           , ProcCall (Op (ProcCall (Op (Lam (FVarList [], [], Var tag, [])), [])), objs)
+           , [] ))
+    , [] ))
+    (* ProcCall
+    ( Op
         (ProcCall
            ( Op
                (Lam
                   ( FVarList []
-                  , [ tag, Lam (FVarList names, defs, List.hd exprs, List.tl exprs) ]
+                  , []
                   , Var tag
                   , [] ))
            , [] ))
-    , objs ))
+    , objs ) *)
     input
 
 and letrec_expr input =
