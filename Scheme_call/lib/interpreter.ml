@@ -1,21 +1,37 @@
 open Ast
 open Parser
 
+type prep_expr =
+  | PVar of variable
+  | PQuote of datum
+  | PConst of const
+  | PProcCall of prep_expr * prep_expr list
+  | PLam of formals * (variable * prep_expr) list * prep_expr * prep_expr list
+  | PCond of prep_expr * prep_expr * prep_expr option
+  | PEscaper of prep_expr
+  | PCallCCLam of int * prep_expr
+  | PCallCC of int
+[@@deriving show { with_path = false }]
+
 type value =
   | VString of string
   | VInt of int
   | VBool of bool
+  | VSymbol of string
   | VList of value list
-  | VExprList of expr list
+  | VAbreviation of char * value
+  | VExprList of prep_expr list
   | VVoid
   | VVar of id
-  | VLambda of formals * expr list
+  | VLambda of formals * (variable * prep_expr) list * prep_expr list
   (*_________________________________________*)
-  | VCallCC of expr
-  | VEscaper of expr
+  | VCallCC of prep_expr
+  | VCallCCLam of int * prep_expr
+  | VCallCC2 of int
+  | VEscaper of prep_expr
   | VPreprocValue of value
-  | VPreprocExpr of expr
-  | VProcCall of value * value list
+  | VPreprocExpr of prep_expr
+  | VProcCall of value * value list (*_________________________________________*)
 [@@deriving show { with_path = false }]
 
 type err_interpr =
@@ -29,11 +45,19 @@ type var =
   ; value : value
   }
 
-type context = { vars : var list }
+type call_cc_var =
+  { number : int
+  ; value : value
+  }
+
+type context =
+  { vars : var list
+  ; call_cc_vars : call_cc_var list
+  }
 
 type lambda_var =
   { l_name : id
-  ; expr : expr
+  ; expr : prep_expr
   }
 
 type lambda_context = { lambda_vars : lambda_var list }
@@ -90,22 +114,42 @@ module Interpret = struct
     ; "display"
     ; "call/cc"
     ; "call-with-current-continuation"
-    ; "escaper"
     ]
   ;;
 
-  let interpr_datum = function
+  let rec prep_expr = function
+    | Var x -> PVar x
+    | Const c -> PConst c
+    | ProcCall (Op op_expr, objs) ->
+      PProcCall (prep_expr op_expr, List.map (fun expr -> prep_expr expr) objs)
+    | Lam (FVarList formals, defs, expr, exprs) ->
+      let new_defs = List.map (fun (var, expr) -> var, prep_expr expr) defs in
+      let new_exprs = List.map prep_expr exprs in
+      PLam (FVarList formals, new_defs, prep_expr expr, new_exprs)
+    | Lam (FVar formal, defs, expr, exprs) ->
+      let new_defs = List.map (fun (var, expr) -> var, prep_expr expr) defs in
+      let new_exprs = List.map prep_expr exprs in
+      PLam (FVar formal, new_defs, prep_expr expr, new_exprs)
+    | Cond (test, conseq, Some alt) ->
+      PCond (prep_expr test, prep_expr conseq, Some (prep_expr alt))
+    | Cond (test, conseq, None) -> PCond (prep_expr test, prep_expr conseq, None)
+    | Quote d -> PQuote d
+  ;;
+
+  let interpr_dconst = function
     | DInt x -> VInt x
     | DBool x -> VBool x
     | DString x -> VString x
+    | DSymbol x -> VSymbol x
   ;;
 
-  let rec interpr_dlist xs =
-    List.map
-      (function
-        | DConst d -> interpr_datum d
-        | List l -> VList (interpr_dlist l))
-      xs
+  let rec interpr_abbrev c d = VAbreviation (c, interpr_datum d)
+  and interpr_dlist xs = List.map interpr_datum xs
+
+  and interpr_datum = function
+    | DConst x -> interpr_dconst x
+    | DList x -> VList (interpr_dlist x)
+    | DAbreviation (x, d) -> interpr_abbrev x d
   ;;
 
   let find_var_for_lambda l_vars l_name =
@@ -118,33 +162,42 @@ module Interpret = struct
   ;;
 
   let rec substitute_vars l_vars = function
-    | Var v ->
+    | PVar v ->
       (match find_var_for_lambda l_vars v with
       | Some expr -> expr
-      | None -> Var v)
-    | Const c -> Const c
-    | ProcCall (Op op_expr, objs) ->
-      ProcCall
-        ( Op (substitute_vars l_vars op_expr)
+      | None -> PVar v)
+    | PConst c -> PConst c
+    | PProcCall (op_expr, objs) ->
+      PProcCall
+        ( substitute_vars l_vars op_expr
         , List.map (fun expr -> substitute_vars l_vars expr) objs )
-    | Lam (FVarList formals, expr, exprs) ->
+    | PLam (FVarList formals, defs, expr, exprs) ->
       let act_ctx =
         List.filter (fun l_var -> not (List.mem l_var.l_name formals)) l_vars
       in
+      let new_defs =
+        List.map (fun (var, expr) -> var, substitute_vars act_ctx expr) defs
+      in
       let new_exprs = List.map (fun expr -> substitute_vars act_ctx expr) exprs in
-      Lam (FVarList formals, substitute_vars act_ctx expr, new_exprs)
-    | Lam (FVar formal, expr, exprs) ->
+      PLam (FVarList formals, new_defs, substitute_vars act_ctx expr, new_exprs)
+    | PLam (FVar formal, defs, expr, exprs) ->
       let act_ctx = List.filter (fun l_var -> l_var.l_name <> formal) l_vars in
+      let new_defs =
+        List.map (fun (var, expr) -> var, substitute_vars act_ctx expr) defs
+      in
       let new_exprs = List.map (fun expr -> substitute_vars act_ctx expr) exprs in
-      Lam (FVar formal, substitute_vars act_ctx expr, new_exprs)
-    | Cond (test, conseq, Some alt) ->
-      Cond
+      PLam (FVar formal, new_defs, substitute_vars act_ctx expr, new_exprs)
+    | PCond (test, conseq, Some alt) ->
+      PCond
         ( substitute_vars l_vars test
         , substitute_vars l_vars conseq
         , Some (substitute_vars l_vars alt) )
-    | Cond (test, conseq, None) ->
-      Cond (substitute_vars l_vars test, substitute_vars l_vars conseq, None)
-    | Quote d -> Quote d
+    | PCond (test, conseq, None) ->
+      PCond (substitute_vars l_vars test, substitute_vars l_vars conseq, None)
+    | PQuote d -> PQuote d
+    | PEscaper x -> PEscaper (substitute_vars l_vars x)
+    | PCallCC x -> PCallCC x
+    | PCallCCLam (n, x) -> PCallCCLam (n, substitute_vars l_vars x)
   ;;
 
   let find_var ctx name =
@@ -154,6 +207,10 @@ module Interpret = struct
         | var_name when String.equal var_name name -> Some var
         | _ -> None)
       ctx.vars
+  ;;
+
+  let find_call_cc_var ctx number =
+    (List.find (fun var -> var.number = number) ctx.call_cc_vars).value
   ;;
 
   let create_or_update_var ctx var =
@@ -168,8 +225,8 @@ module Interpret = struct
                | _ -> true)
              ctx.vars
       in
-      return { vars }
-    | None -> return { vars = var :: ctx.vars }
+      return { ctx with vars }
+    | None -> return { ctx with vars = var :: ctx.vars }
   ;;
 
   let interpr_display x =
@@ -178,6 +235,8 @@ module Interpret = struct
       | VInt v -> Base.string_of_int v
       | VBool true -> "#t"
       | VBool false -> "#f"
+      | VSymbol v -> v
+      | VAbreviation (c, v) -> Printf.sprintf "%c%s" c (helper_display v)
       | VList v ->
         let rec helper = function
           | [ y ] -> helper_display y
@@ -237,74 +296,78 @@ module Interpret = struct
     | _ -> return (VBool false)
   ;;
 
-  let create_empty_ctx = { vars = [] }
+  let create_empty_ctx = { vars = []; call_cc_vars = [] }
   let ex_to_prep_v expr = VPreprocExpr expr
   let exs_to_prep_vs exprs = List.map ex_to_prep_v exprs
 
   let value_to_expr f = function
     | VPreprocExpr x -> return x
     | VPreprocValue x -> f x
-    | VBool x -> return (Const (Bool x))
-    | VInt x -> return (Const (Int x))
-    | VString x -> return (Const (String x))
-    | VVar x -> return (Var x)
+    | VBool x -> return (PConst (Bool x))
+    | VInt x -> return (PConst (Int x))
+    | VString x -> return (PConst (String x))
+    | VVar x -> return (PVar x)
     | VList x ->
       let* l = mapm f x in
-      return (ProcCall (Op (Var "list"), l))
-    | VLambda (formals, exprs) -> return (Lam (formals, List.hd exprs, List.tl exprs))
+      return (PProcCall (PVar "list", l))
+    | VLambda (formals, defs, exprs) ->
+      return (PLam (formals, defs, List.hd exprs, List.tl exprs))
     | VProcCall (v, vs) ->
       let* oper = f v in
       let* objs = mapm f vs in
-      return (ProcCall (Op oper, objs))
+      return (PProcCall (oper, objs))
     | _ -> error (Err "Yet not implemented in call/cc")
   ;;
 
-  let rec call_cc1 = function
-    | VCallCC _ -> return (Var "var_reserved_for_call_cc_call")
-    | v -> value_to_expr call_cc1 v
+  let rec call_cc1 var_name = function
+    | VCallCC _ -> return (PCallCC var_name)
+    | v -> value_to_expr (call_cc1 var_name) v
   ;;
 
-  let rec call_cc2 expr = function
-    | VCallCC v ->
-      return
-        (ProcCall
-           ( Op v
-           , [ ProcCall
-                 ( Op (Var "escaper")
-                 , [ Lam (FVarList [ "var_reserved_for_call_cc_call" ], expr, []) ] )
-             ] ))
-    | v -> value_to_expr (call_cc2 expr) v
+  let rec call_cc2 var_name expr = function
+    | VCallCC v -> return (PProcCall (v, [ PEscaper (PCallCCLam (var_name, expr)) ]))
+    | v -> value_to_expr ((call_cc2 var_name) expr) v
   ;;
 
   let rec interpr_expr ctx = function
-    | Var v ->
+    | PVar v ->
       (match find_var ctx v with
       | Some var -> return var.value
       | None ->
         (match v with
         | vv when List.mem vv (bin_ops @ un_ops) -> return (VVar v)
         | _ -> error (Err (Printf.sprintf "Exception: variable %s is not bound\n" v))))
-    | Quote (DConst c) -> return (interpr_datum c)
-    | Quote (List l) -> return (VList (interpr_dlist l))
-    | Const (Int x) -> return (VInt x)
-    | Const (Bool x) -> return (VBool x)
-    | Const (String x) -> return (VString x)
-    | Lam (formals, expr, exprs) -> return (VLambda (formals, expr :: exprs))
-    | ProcCall (Op op_expr, objs) -> interpr_proc_call ctx op_expr objs
-    | Cond (test, conseq, alter) -> interpr_if_condionals ctx test conseq alter
+    | PQuote x -> return (interpr_datum x)
+    | PConst (Int x) -> return (VInt x)
+    | PConst (Bool x) -> return (VBool x)
+    | PConst (String x) -> return (VString x)
+    | PLam (formals, defs, expr, exprs) -> return (VLambda (formals, defs, expr :: exprs))
+    | PProcCall (op_expr, objs) -> interpr_proc_call ctx op_expr objs
+    | PCond (test, conseq, alter) -> interpr_if_condionals ctx test conseq alter
+    | PEscaper x -> return (VEscaper x)
+    | PCallCCLam (n, expr) -> return (VCallCCLam (n, expr))
+    | PCallCC x -> return (find_call_cc_var ctx x)
 
   and interpr_proc_call ctx op_expr objs =
     let* op = interpr_expr ctx op_expr in
     match op with
     | VEscaper v ->
-      let* ans = interpr_expr ctx (ProcCall (Op v, objs)) in
+      let* ans = interpr_expr ctx (PProcCall (v, objs)) in
       error (Escaper ans)
     | VPreprocValue v -> return (VPreprocValue (VProcCall (v, exs_to_prep_vs objs)))
     | VVar v when List.mem v un_ops -> interpr_un_expr ctx v objs
     | VVar v -> interpr_bin_expr ctx v objs
-    | VLambda (FVarList formals, exprs) -> interpr_lambda_vars ctx exprs formals objs
-    | VLambda (FVar formal, exprs) -> interpr_lambda_var ctx exprs formal objs
+    | VCallCCLam (n, expr) -> interpr_lambda_call_cc ctx expr n objs
+    | VLambda (FVarList formals, defs, exprs) ->
+      interpr_lambda_vars ctx exprs defs formals objs
+    | VLambda (FVar formal, defs, exprs) -> interpr_lambda_var ctx exprs defs formal objs
     | _ -> error (Err "Exception: attempt to apply non-procedure value\n")
+
+  and interpr_lambda_call_cc ctx expr number = function
+    | [ obj ] ->
+      let* value = expr_call ctx obj in
+      interpr_expr { ctx with call_cc_vars = { number; value } :: ctx.call_cc_vars } expr
+    | _ -> error (Err "Exception: incorrect argument count in call/cc\n")
 
   and interpr_lambda_expr ctx =
     let rec helper acc = function
@@ -315,16 +378,21 @@ module Interpret = struct
     in
     helper VVoid
 
-  and interpr_lambda_vars ctx exprs formals objs =
+  and interpr_lambda_vars ctx exprs defs formals objs =
     match List.compare_lengths formals objs with
     | 0 ->
       let l_vars = List.map2 (fun l_name expr -> { l_name; expr }) formals objs in
+      let new_defs =
+        List.map (fun (var, expr) -> var, substitute_vars l_vars expr) defs
+      in
+      let* new_ctx = interpr_defs ctx new_defs in
       let new_exprs = List.map (fun expr -> substitute_vars l_vars expr) exprs in
-      interpr_lambda_expr ctx new_exprs
+      interpr_lambda_expr new_ctx new_exprs
     | _ -> error (Err "Exception: incorrect argument count in lambda\n")
 
-  and interpr_lambda_var ctx exprs formal objs =
+  and interpr_lambda_var ctx exprs defs formal objs =
     let* new_ctx = create_or_update_var ctx { name = formal; value = VExprList objs } in
+    let* new_ctx = interpr_defs new_ctx defs in
     interpr_lambda_expr new_ctx exprs
 
   and interpr_un_expr ctx op_str exprs =
@@ -332,7 +400,6 @@ module Interpret = struct
     | "display", [ expr ] ->
       let* v = expr_call ctx expr in
       interpr_display v
-    | "escaper", [ expr ] -> return (VEscaper expr)
     | "call-with-current-continuation", [ expr ] | "call/cc", [ expr ] ->
       return (VPreprocValue (VCallCC expr))
     | _ ->
@@ -390,28 +457,33 @@ module Interpret = struct
       return VVoid
     | _ -> error (Err "Exception in newline: incorrect argument count\n")
 
-  and interpr_datum_for_apply = function
-    | DInt x -> Const (Int x)
-    | DBool x -> Const (Bool x)
-    | DString x -> Const (String x)
+  and interpr_dconst_app = function
+    | DInt x -> PConst (Int x)
+    | DBool x -> PConst (Bool x)
+    | DString x -> PConst (String x)
+    | DSymbol x -> PQuote (DConst (DSymbol x))
 
-  and interpr_dlist_for_apply = function
+  and interpr_dlist_app = function
     | hd :: tl ->
       (match hd with
-      | DConst d -> List.cons (interpr_datum_for_apply d) (interpr_dlist_for_apply tl)
-      | List l -> interpr_dlist_for_apply l @ interpr_dlist_for_apply tl)
+      | DConst dc -> List.cons (interpr_dconst_app dc) (interpr_dlist_app tl)
+      | DList dl -> interpr_dlist_app dl @ interpr_dlist_app tl
+      | DAbreviation (c, d) ->
+        List.cons (PQuote (DAbreviation (c, d))) (interpr_dlist_app tl))
     | [] -> []
+
+  and interpr_datum_f_apply = function
+    | DConst dc -> [ interpr_dconst_app dc ]
+    | DList l -> interpr_dlist_app l
+    | DAbreviation (c, d) -> [ PQuote (DAbreviation (c, d)) ]
 
   and interpr_apply ctx = function
     | [ op_expr; list_expr ] ->
       (match list_expr with
-      | Quote l ->
-        (match l with
-        | DConst dc -> interpr_proc_call ctx op_expr [ interpr_datum_for_apply dc ]
-        | List l -> interpr_proc_call ctx op_expr (interpr_dlist_for_apply l))
-      | ProcCall (Op (Var "list"), objs) -> interpr_proc_call ctx op_expr objs
-      | Var v ->
-        let* x = interpr_expr ctx (Var v) in
+      | PQuote l -> interpr_proc_call ctx op_expr (interpr_datum_f_apply l)
+      | PProcCall (PVar "list", objs) -> interpr_proc_call ctx op_expr objs
+      | PVar v ->
+        let* x = interpr_expr ctx (PVar v) in
         (match x with
         | VExprList exprs -> interpr_proc_call ctx op_expr exprs
         | _ -> error (Err "Exception in apply: this is not a proper list"))
@@ -459,7 +531,7 @@ module Interpret = struct
     | [] ->
       error
         (Err (Printf.sprintf "Exception: incorrect argument count in call (%s)\n" op_str))
-    | [ el ] -> interpr_sub_div_expr ctx op op_str c [ Const (Int c); el ]
+    | [ el ] -> interpr_sub_div_expr ctx op op_str c [ PConst (Int c); el ]
     | head :: objs ->
       let* h = interpr_expr ctx head in
       (match h with
@@ -523,10 +595,19 @@ module Interpret = struct
     match interpr_expr ctx expr with
     | Error (Escaper value) -> return value
     | Ok (VPreprocValue v) ->
-      let* cal_cc_expr1 = call_cc1 v in
-      let* cal_cc_expr2 = call_cc2 cal_cc_expr1 v in
+      let* cal_cc_expr1 = (call_cc1 (List.length ctx.call_cc_vars)) v in
+      let* cal_cc_expr2 = (call_cc2 (List.length ctx.call_cc_vars)) cal_cc_expr1 v in
       expr_call ctx cal_cc_expr2
     | result -> result
+
+  and interpr_defs ctx =
+    let rec helper acc_ctx = function
+      | (var, expr) :: tl ->
+        let* ctx, _ = interpr_def var acc_ctx expr in
+        helper ctx tl
+      | [] -> return acc_ctx
+    in
+    helper ctx
 
   and interpr_def name ctx expr =
     let* value = expr_call ctx expr in
@@ -534,9 +615,9 @@ module Interpret = struct
     return (new_ctx, VVar name)
 
   and interpr_form ctx = function
-    | Def (name, expr) -> interpr_def name ctx expr
+    | Def (name, expr) -> interpr_def name ctx (prep_expr expr)
     | Expr expr ->
-      let* exp = expr_call ctx expr in
+      let* exp = expr_call ctx (prep_expr expr) in
       return (ctx, exp)
   ;;
 

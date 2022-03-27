@@ -50,31 +50,40 @@ let operator = function
   | _ -> mzero
 ;;
 
-let const_d input =
-  choice
-    [ (integer => fun i -> DConst (DInt i))
-    ; (boolean => fun b -> DConst (DBool b))
-    ; (str => fun s -> DConst (DString s))
-    ]
+let rec abreviation input =
+  (spaces
+  >> one_of [ '`'; '\''; ',' ]
+  >>= fun x -> quote2 => fun datum -> DAbreviation (x, datum))
     input
-;;
 
-let rec qlist input =
-  (between (token "(" >> spaces) (token ")") (sep_by (const_d <|> qlist) spaces)
-  => fun xs -> List xs)
+and qlist input =
+  (between (token "(" >> spaces) (token ")") (many quote2) => fun xs -> DList xs) input
+
+and const_d input =
+  (spaces
+  >> choice
+       [ (integer => fun i -> DConst (DInt i))
+       ; (boolean => fun b -> DConst (DBool b))
+       ; (str => fun s -> DConst (DString s))
+       ; (identifier => fun i -> DConst (DSymbol i))
+       ])
+    input
+
+and quote2 input = (spaces >> choice [ const_d; qlist; abreviation ]) input
+
+let quote input =
+  (token "'"
+  >> quote2
+  <|> between (token "(" >> spaces) (token ")") (token "quote" >> quote2)
+  => fun x -> Quote x)
     input
 ;;
 
 let var = identifier => fun x -> Var x
 
-let quote2 input =
-  choice [ (const_d => fun x -> Quote x); (qlist => fun l -> Quote l) ] input
-;;
-
-let quote input = (token "'" >> quote2 <|> parens (token "quote" >> quote2)) input
-
 let rec expr input =
-  (choice [ quote; conditional; let_expr; lambda; proc_call; const_e; var ]) input
+  (spaces >> choice [ quote; conditional; derived_expr; lambda; proc_call; const_e; var ])
+    input
 
 and proc_call input = parens (many expr >>= operator) input
 and conditional input = (if_conditional <|> cond_conditional) input
@@ -95,7 +104,7 @@ and cond_conditional input = parens (token "cond" >> cond_conditional2) input
 
 and cond_conditional2 input =
   (parens (token "else" >> expr)
-  <|> (between (token "(" >> spaces) (token ")") (many expr)
+  <|> (between (token "(") (token ")") (many expr)
       >>= function
       | [ test; cons ] ->
         option
@@ -113,7 +122,9 @@ and lambda input =
     (token "lambda"
     >> spaces
     >> formals
-    >>= fun f -> spaces >> many1 expr => fun exprs -> Lam (f, List.hd exprs, List.tl exprs)
+    >>= fun f ->
+    many def
+    >>= fun defs -> many1 expr => fun exprs -> Lam (f, defs, List.hd exprs, List.tl exprs)
     )
     input
 
@@ -122,47 +133,97 @@ and formals =
   => (fun fs -> FVarList fs)
   <|> (identifier => fun f -> FVar f)
 
+and derived_expr input = (let_expr <|> letrec_expr) input
+
 and let_expr input =
   between
     (token "(" >> spaces)
     (token ")")
-    (token "let"
+    (token "let" >> (let_expr_without_tag <|> let_expr_with_tag))
+    input
+
+and let_expr_without_tag input =
+  (between
+     (token "(" >> spaces)
+     (token ")")
+     (many (between (token "(" >> spaces) (token ")") (identifier <~~> expr)))
+  >>= fun l ->
+  many def
+  >>= fun defs ->
+  many1 expr
+  => fun exprs ->
+  let names, objs = List.split l in
+  ProcCall (Op (Lam (FVarList names, defs, List.hd exprs, List.tl exprs)), objs))
+    input
+
+and let_expr_with_tag input =
+  (identifier
+  >>= fun tag ->
+  between
+    (token "(" >> spaces)
+    (token ")")
+    (many (between (token "(" >> spaces) (token ")") (identifier <~~> expr)))
+  >>= fun l ->
+  many def
+  >>= fun defs ->
+  many1 expr
+  => fun exprs ->
+  let names, objs = List.split l in
+  ProcCall
+    ( Op
+        (ProcCall
+           ( Op
+               (Lam
+                  ( FVarList []
+                  , [ tag, Lam (FVarList names, defs, List.hd exprs, List.tl exprs) ]
+                  , Var tag
+                  , [] ))
+           , [] ))
+    , objs ))
+    input
+
+and letrec_expr input =
+  between
+    (token "(" >> spaces)
+    (token ")")
+    (token "letrec"
     >> between
          (token "(" >> spaces)
          (token ")")
-         (many (between (token "(" >> spaces) (token ")") (identifier <~~> expr)))
-    >>= fun l ->
+         (many
+            (between (token "(" >> spaces) (token ")" >> spaces) (identifier <~~> expr)))
+    >>= fun defs ->
     many1 expr
-    => fun expr ->
-    let names, objs = List.split l in
-    ProcCall (Op (Lam (FVarList names, List.hd expr, List.tl expr)), objs))
+    => fun exprs ->
+    ProcCall (Op (Lam (FVarList [], defs, List.hd exprs, List.tl exprs)), []))
     input
-;;
 
-let def3 input =
+and def_with_formals input =
   (parens_id (many1 identifier)
   >>= fun fs ->
+  many def
+  >>= fun defs ->
   many1 expr
   >>= fun expr ->
   match fs with
   | [] -> mzero
-  | _ ->
-    return (Def (List.hd fs, Lam (FVarList (List.tl fs), List.hd expr, List.tl expr))))
+  | _ -> return (List.hd fs, Lam (FVarList (List.tl fs), defs, List.hd expr, List.tl expr))
+  )
     input
 
-and def2 input =
-  (identifier >>= fun var -> expr => fun expression -> Def (var, expression)) input
-;;
+and def_without_formals input =
+  (identifier >>= fun var -> expr => fun expression -> var, expression) input
 
-let def input =
-  between
-    (token "(" >> spaces)
-    (token ")")
-    (token "define" >> spaces >> (def2 <|> def3))
+and def input =
+  (spaces
+  >> between
+       (token "(" >> spaces)
+       (token ")")
+       (token "define" >> spaces >> (def_without_formals <|> def_with_formals)))
     input
 ;;
 
-let form = def <|> (expr => fun e -> Expr e)
+let form = def => (fun d -> Def d) <|> (expr => fun e -> Expr e)
 let prog = many form << spaces << eof ()
 let parse_prog str = parse prog (LazyStream.of_string str)
 let parse_this parser str = parse parser (LazyStream.of_string str)

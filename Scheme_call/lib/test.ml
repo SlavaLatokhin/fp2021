@@ -1,8 +1,18 @@
 open Interpreter
-(* open Ast *)
 
 (* let () =
-  let input_str = {|  (display "(^-^)")  |} in
+  let input_str =
+    {|  (display '(+ 1 '(+ 3 4)))  |}
+    (* {|  (define a 1)   (display (((lambda () (define loop (lambda (numbers nonneg neg) (cond ((null? numbers) (list nonneg neg))
+        ((>= (car numbers) 0)
+         (loop (cdr numbers)
+               (cons (car numbers) nonneg)
+               neg))
+        ((< (car numbers) 0)
+         (loop (cdr numbers)  
+               nonneg
+               (cons (car numbers) neg))))   )) loop)) '(3 -2 1 6 -5) '() '()))  |} *)
+  in
   match parse_and_run_prog input_str with
   | Ok (_, _) ->
     ()
@@ -17,12 +27,26 @@ open Interpreter
   | Error (ERROR err) -> Printf.printf "%s" err
 ;; *)
 
-(*
-open Opal
+(* open Opal
 open Parser
+open Ast
 
 let () =
-  let input = LazyStream.of_string {| (display "(^-^)") |} in
+  let input =
+    LazyStream.of_string {|  (display '(+ 1 '(+ 3 4)) )  |}
+    (* {| (let loop ((numbers '(3 -2 1 6 -5))
+           (nonneg '())
+           (neg '()))
+  (cond ((null? numbers) (list nonneg neg))
+        ((>= (car numbers) 0)
+         (loop (cdr numbers)
+               (cons (car numbers) nonneg)
+               neg))
+        ((< (car numbers) 0)
+         (loop (cdr numbers)
+               nonneg
+               (cons (car numbers) neg))))) |} *)
+  in
   match parse prog input with
   | Some ans -> Format.printf "Actual: %a\n" pp_program ans
   | None -> print_endline "ERROR!"
