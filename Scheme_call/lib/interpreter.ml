@@ -36,7 +36,7 @@ type value =
   | VBool of bool
   | VSymbol of string
   | VList of value list
-  | VAbbreviation of char * value
+  | VAbbreviation of abbrev_prefix * value
   | VExprList of prep_expr list
   | VVoid
   | VVar of id
@@ -278,7 +278,14 @@ module Interpret = struct
     | VBool true -> "#t"
     | VBool false -> "#f"
     | VSymbol v -> v
-    | VAbbreviation (c, v) -> Printf.sprintf "%c%s" c (helper_display v)
+    | VAbbreviation (abbrev_prefix, v) ->
+      let c =
+        match abbrev_prefix with
+        | AQuote -> "'"
+        | AQuasiquote -> "`"
+        | AUnquote -> ","
+      in
+      c ^ helper_display v
     | VList v ->
       let rec helper = function
         | [ y ] -> helper_display y
@@ -400,10 +407,10 @@ module Interpret = struct
       return (VList vlist)
     | PQList (PQLQuote x) ->
       let* vquote = interpr_qquote ctx x in
-      return (VAbbreviation ('\'', vquote))
+      return (VAbbreviation (AQuote, vquote))
     | PQList (PQLQuasiquote x) ->
       let* vquote = interpr_qquote ctx x in
-      return (VAbbreviation ('`', vquote))
+      return (VAbbreviation (AQuasiquote, vquote))
     | PQUnquote x ->
       let* unquotation = interpr_expr ctx x in
       return (VString (helper_display unquotation))
