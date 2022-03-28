@@ -36,7 +36,7 @@ type value =
   | VBool of bool
   | VSymbol of string
   | VList of value list
-  | VAbreviation of char * value
+  | VAbbreviation of abbrev_prefix * value
   | VExprList of prep_expr list
   | VVoid
   | VVar of id
@@ -172,12 +172,12 @@ module Interpret = struct
     | DSymbol x -> VSymbol x
   ;;
 
-  let rec interpr_abbrev c d = VAbreviation (c, interpr_datum d)
+  let rec interpr_abbrev c d = VAbbreviation (c, interpr_datum d)
 
   and interpr_datum = function
     | DConst x -> interpr_dconst x
     | DList x -> VList (List.map interpr_datum x)
-    | DAbreviation (x, d) -> interpr_abbrev x d
+    | DAbbreviation (x, d) -> interpr_abbrev x d
   ;;
 
   let find_var_for_lambda l_vars l_name =
@@ -278,7 +278,14 @@ module Interpret = struct
     | VBool true -> "#t"
     | VBool false -> "#f"
     | VSymbol v -> v
-    | VAbreviation (c, v) -> Printf.sprintf "%c%s" c (helper_display v)
+    | VAbbreviation (abbrev_prefix, v) ->
+      let c =
+        match abbrev_prefix with
+        | AQuote -> "'"
+        | AQuasiquote -> "`"
+        | AUnquote -> ","
+      in
+      c ^ helper_display v
     | VList v ->
       let rec helper = function
         | [ y ] -> helper_display y
@@ -400,10 +407,10 @@ module Interpret = struct
       return (VList vlist)
     | PQList (PQLQuote x) ->
       let* vquote = interpr_qquote ctx x in
-      return (VAbreviation ('\'', vquote))
+      return (VAbbreviation (AQuote, vquote))
     | PQList (PQLQuasiquote x) ->
       let* vquote = interpr_qquote ctx x in
-      return (VAbreviation ('`', vquote))
+      return (VAbbreviation (AQuasiquote, vquote))
     | PQUnquote x ->
       let* unquotation = interpr_expr ctx x in
       return (VString (helper_display unquotation))
@@ -528,14 +535,14 @@ module Interpret = struct
       (match hd with
       | DConst dc -> List.cons (interpr_dconst_app dc) (interpr_dlist_app tl)
       | DList dl -> interpr_dlist_app dl @ interpr_dlist_app tl
-      | DAbreviation (c, d) ->
-        List.cons (PQuote (DAbreviation (c, d))) (interpr_dlist_app tl))
+      | DAbbreviation (c, d) ->
+        List.cons (PQuote (DAbbreviation (c, d))) (interpr_dlist_app tl))
     | [] -> []
 
   and interpr_datum_f_apply = function
     | DConst dc -> [ interpr_dconst_app dc ]
     | DList l -> interpr_dlist_app l
-    | DAbreviation (c, d) -> [ PQuote (DAbreviation (c, d)) ]
+    | DAbbreviation (c, d) -> [ PQuote (DAbbreviation (c, d)) ]
 
   and interpr_apply ctx = function
     | [ op_expr; list_expr ] ->

@@ -50,10 +50,19 @@ let operator = function
   | _ -> mzero
 ;;
 
+let interpr_abbrev_prefix input =
+  (choice
+     [ token "'" >> return AQuote
+     ; token "`" >> return AQuasiquote
+     ; token "," >> return AUnquote
+     ])
+    input
+;;
+
 let rec abreviation input =
   (spaces
-  >> one_of [ '`'; '\''; ',' ]
-  >>= fun x -> quote2 => fun datum -> DAbreviation (x, datum))
+  >> interpr_abbrev_prefix
+  >>= fun x -> quote2 => fun datum -> DAbbreviation (x, datum))
     input
 
 and qlist input =
