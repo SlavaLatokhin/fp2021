@@ -3,11 +3,13 @@ type abbrev_prefix =
   | AQuote (** ' *)
   | AQuasiquote (** ` *)
   | AUnquote (** , *)
+[@@deriving show { with_path = false }]
 
-and datum =
+type datum =
   | DConst of dconst
   | DList of datum list
   | DAbbreviation of abbrev_prefix * datum
+[@@deriving show { with_path = false }]
 
 and id = string
 
