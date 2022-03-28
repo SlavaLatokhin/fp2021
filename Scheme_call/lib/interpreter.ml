@@ -11,18 +11,17 @@ and prep_quasiquote = (** Аналогично ast-шной версии *)
   | PQList of pqlist
   | PQUnquote of prep_expr
 
-and prep_expr = 
-(** Аналогично ast-шной версии, но с дополнительными типами для call/cc *)
+and prep_expr = (** Аналогично ast-шной версии, но с дополнительными типами для call/cc *)
   | PVar of variable
   | PQuote of datum
   | PQuasiquote of prep_quasiquote
   | PConst of const
   | PProcCall of prep_expr * prep_expr list
   | PLam of formals * (variable * prep_expr) list * prep_expr * prep_expr list 
-(** (lambda <formals> <definition> list <expr> <expr> list ) *)
+      (** (lambda <formals> <definition> list <expr> <expr> list ) *)
   | PCond of prep_expr * prep_expr * prep_expr option
   | PEscaper of prep_expr 
-(** Функция выхода. Бросает исключение, и позволяет вернуться в функцию - обертку *)
+      (** Функция выхода. Бросает исключение, и позволяет вернуться в функцию - обертку *)
   | PCallCCLam of int * prep_expr (** Контекст выражения *)
   | PCallCC of int (** Переменная для вызова call/cc *)
 [@@deriving show { with_path = false }]
@@ -44,7 +43,7 @@ type value =
   | VEscaper of prep_expr
   | VPreprocValue of value
   | VPreprocExpr of prep_expr
-  | VProcCall of value * value list (*_________________________________________*)
+  | VProcCall of value * value list
 [@@deriving show { with_path = false }]
 
 type err_interpr =
