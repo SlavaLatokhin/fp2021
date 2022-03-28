@@ -12,6 +12,16 @@ and dconst =
   | DString of string
   | DSymbol of id
 
+and qlist =
+  | QLList of quasiquote list
+  | QLQuote of quasiquote
+  | QLQuasiquote of quasiquote
+
+and quasiquote =
+  | QConst of dconst
+  | QList of qlist
+  | QUnquote of expr
+
 and variable = id
 
 and const =
@@ -26,7 +36,7 @@ and formals =
   | FVar of variable
 
 and expr =
-  (* | Quasiquote of quasiquote *)
+  | Quasiquote of quasiquote
   | Var of variable (* Переменная *)
   | Quote of datum (* '(<datum> list) или (quote <datum> list)*)
   | Const of const (* 1, "word", #t *)

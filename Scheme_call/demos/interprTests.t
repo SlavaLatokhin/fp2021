@@ -71,28 +71,32 @@ Some implementations of factorial algoritms
 
   $ ./demoParse.exe <<-EOF 
   > (display '(+ 1 \`(+ 3 4)) )
+  > (newline)
+  > (display \`(+ 1 '(3 4)) ) 
   (+ 1 `(+ 3 4))
-> (display `(+ 1 '(+ 3 4)) )
+  (+ 1 '(3 4))
 #Hangs ?
-$ ./demoParse.exe <<-EOF
-> (display `(+ 1 `(+ 3 4)) )
+  $ ./demoParse.exe <<-EOF
+  > (display \`(+ 1 \`(+ 3 4)) )
+  (+ 1 `(+ 3 4))
 #Hangs ?
-$ ./demoParse.exe <<-EOF
-> (display `(+ 1 ,(+ 3 4)) )
-
-$ ./demoParse.exe <<-EOF
-> (display `(+ 1 '(+ 3 4 ,(* 3 5))) )
-$ ./demoParse.exe <<-EOF
-> (display (list 7 6 5 ,(+ 1 2 3)) )
-
+  $ ./demoParse.exe <<-EOF
+  > (display \`(+ 1 ,(+ 3 4)) )
+  (+ 1 7)
+  $ ./demoParse.exe <<-EOF
+  > (display \`(+ 1 '(+ 3 4 ,(* 3 5))) )
+  (+ 1 '(+ 3 4 15))
+  $ ./demoParse.exe <<-EOF
+  > (display (list 7 6 5 ,(+ 1 2 3)) )
+  Exception: invalid syntax
 # call/cc Quines
 # HANGS?
-$ ./demoParse.exe <<-EOF
-> (call/cc (lambda (c) (c ((lambda (c) `(call/cc (lambda (c) (c (,c ',c))))) '(lambda (c) `(call/cc (lambda (c) (c (,c ',c))))))))
-
-$ ./demoParse.exe <<-EOF
-> (display (call/cc (lambda (c)  (call/cc (lambda (cc)  (c ((lambda (c) `(call/cc (lambda (c) (call/cc (lambda (cc) (c (,c ',c))))))) '(lambda (c) `(call/cc (lambda (c) (call/cc (lambda (cc) (c (,c ',c))))))))))))) )
-
+  $ ./demoParse.exe <<-EOF
+  > (display (call/cc (lambda (c) (c ((lambda (c) \`(call/cc (lambda (c) (c (,c ',c))))) '(lambda (c) \`(call/cc (lambda (c) (c (,c ',c))))))))))
+  (call/cc (lambda (c) (c ((lambda (c) `(call/cc (lambda (c) (c (,c ',c))))) '(lambda (c) `(call/cc (lambda (c) (c (,c ',c)))))))))
+  $ ./demoParse.exe <<-EOF
+  > (display (call/cc (lambda (c)  (call/cc (lambda (cc)  (c ((lambda (c) \`(call/cc (lambda (c) (call/cc (lambda (cc) (c (,c ',c))))))) '(lambda (c) \`(call/cc (lambda (c) (call/cc (lambda (cc) (c (,c ',c))))))))))))) )
+  (call/cc (lambda (c) (call/cc (lambda (cc) (c ((lambda (c) `(call/cc (lambda (c) (call/cc (lambda (cc) (c (,c ',c))))))) '(lambda (c) `(call/cc (lambda (c) (call/cc (lambda (cc) (c (,c ',c)))))))))))))
 
 # if
   $ ./demoParse.exe <<-EOF

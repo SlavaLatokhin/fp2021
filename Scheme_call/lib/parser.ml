@@ -62,14 +62,16 @@ and qlist input =
 and const_d input =
   (spaces
   >> choice
-       [ (integer => fun i -> DConst (DInt i))
-       ; (boolean => fun b -> DConst (DBool b))
-       ; (str => fun s -> DConst (DString s))
-       ; (identifier => fun i -> DConst (DSymbol i))
+       [ (integer => fun i -> DInt i)
+       ; (boolean => fun b -> DBool b)
+       ; (str => fun s -> DString s)
+       ; (identifier => fun i -> DSymbol i)
        ])
     input
 
-and quote2 input = (spaces >> choice [ const_d; qlist; abreviation ]) input
+and quote2 input =
+  (spaces >> choice [ (const_d => fun x -> DConst x); qlist; abreviation ]) input
+;;
 
 let quote input =
   (token "'"
@@ -82,7 +84,34 @@ let quote input =
 let var = identifier => fun x -> Var x
 
 let rec expr input =
-  (spaces >> choice [ quote; conditional; derived_expr; lambda; proc_call; const_e; var ])
+  (spaces
+  >> choice
+       [ quasiquote; quote; conditional; derived_expr; lambda; proc_call; const_e; var ])
+    input
+
+and qqlist input =
+  (between (token "(" >> spaces) (token ")") (many quasiquote2)
+  => (fun xs -> QLList xs)
+  <|> (token "'" >> quasiquote2 => fun x -> QLQuote x)
+  <|> (token "`" >> quasiquote2 => fun x -> QLQuasiquote x)
+  => fun qll -> QList qll)
+    input
+
+and unquote input =
+  (token ","
+  >> expr
+  <|> between (token "(" >> spaces) (token ")") (token "unquote" >> expr)
+  => fun x -> QUnquote x)
+    input
+
+and quasiquote2 input =
+  (spaces >> choice [ (const_d => fun x -> QConst x); qqlist; unquote ]) input
+
+and quasiquote input =
+  (token "`"
+  >> quasiquote2
+  <|> between (token "(" >> spaces) (token ")") (token "quasiquote" >> quasiquote2)
+  => fun x -> Quasiquote x)
     input
 
 and proc_call input = parens (many expr >>= operator) input
@@ -177,17 +206,6 @@ and let_expr_with_tag input =
            , ProcCall (Op (ProcCall (Op (Lam (FVarList [], [], Var tag, [])), [])), objs)
            , [] ))
     , [] ))
-    (* ProcCall
-    ( Op
-        (ProcCall
-           ( Op
-               (Lam
-                  ( FVarList []
-                  , []
-                  , Var tag
-                  , [] ))
-           , [] ))
-    , objs ) *)
     input
 
 and letrec_expr input =

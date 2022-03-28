@@ -1,9 +1,20 @@
 open Ast
 open Parser
 
-type prep_expr =
+type pqlist =
+  | PQLList of prep_quasiquote list
+  | PQLQuote of prep_quasiquote
+  | PQLQuasiquote of prep_quasiquote
+
+and prep_quasiquote =
+  | PQConst of dconst
+  | PQList of pqlist
+  | PQUnquote of prep_expr
+
+and prep_expr =
   | PVar of variable
   | PQuote of datum
+  | PQuasiquote of prep_quasiquote
   | PConst of const
   | PProcCall of prep_expr * prep_expr list
   | PLam of formals * (variable * prep_expr) list * prep_expr * prep_expr list
@@ -133,6 +144,14 @@ module Interpret = struct
       PCond (prep_expr test, prep_expr conseq, Some (prep_expr alt))
     | Cond (test, conseq, None) -> PCond (prep_expr test, prep_expr conseq, None)
     | Quote d -> PQuote d
+    | Quasiquote x -> PQuasiquote (prep_quasiquote x)
+
+  and prep_quasiquote = function
+    | QConst x -> PQConst x
+    | QList (QLList x) -> PQList (PQLList (List.map prep_quasiquote x))
+    | QList (QLQuote x) -> PQList (PQLQuote (prep_quasiquote x))
+    | QList (QLQuasiquote x) -> PQList (PQLQuasiquote (prep_quasiquote x))
+    | QUnquote x -> PQUnquote (prep_expr x)
   ;;
 
   let interpr_dconst = function
@@ -143,11 +162,10 @@ module Interpret = struct
   ;;
 
   let rec interpr_abbrev c d = VAbreviation (c, interpr_datum d)
-  and interpr_dlist xs = List.map interpr_datum xs
 
   and interpr_datum = function
     | DConst x -> interpr_dconst x
-    | DList x -> VList (interpr_dlist x)
+    | DList x -> VList (List.map interpr_datum x)
     | DAbreviation (x, d) -> interpr_abbrev x d
   ;;
 
@@ -197,6 +215,21 @@ module Interpret = struct
     | PEscaper x -> PEscaper (substitute_vars l_vars x)
     | PCallCC x -> PCallCC x
     | PCallCCLam (n, x) -> PCallCCLam (n, substitute_vars l_vars x)
+    | PQuasiquote x -> PQuasiquote (subs_qq l_vars x)
+
+  and subs_qq l_vars = function
+    | PQConst x -> PQConst x
+    | PQList (PQLList x) -> PQList (PQLList (List.map (subs_qq l_vars) x))
+    | PQList (PQLQuote x) -> PQList (PQLQuote (subs_qq l_vars x))
+    | PQList (PQLQuasiquote x) -> PQList (PQLQuasiquote (subs_qq2 l_vars x))
+    | PQUnquote x -> PQUnquote (substitute_vars l_vars x)
+
+  and subs_qq2 l_vars = function
+    | PQConst x -> PQConst x
+    | PQList (PQLList x) -> PQList (PQLList (List.map (subs_qq l_vars) x))
+    | PQList (PQLQuote x) -> PQList (PQLQuote (subs_qq l_vars x))
+    | PQList (PQLQuasiquote x) -> PQList (PQLQuasiquote (subs_qq l_vars x))
+    | PQUnquote x -> PQUnquote x
   ;;
 
   let find_var ctx name =
@@ -228,26 +261,27 @@ module Interpret = struct
     | None -> return { ctx with vars = var :: ctx.vars }
   ;;
 
+  let rec helper_display = function
+    | VString v -> v
+    | VInt v -> Base.string_of_int v
+    | VBool true -> "#t"
+    | VBool false -> "#f"
+    | VSymbol v -> v
+    | VAbreviation (c, v) -> Printf.sprintf "%c%s" c (helper_display v)
+    | VList v ->
+      let rec helper = function
+        | [ y ] -> helper_display y
+        | hd :: tl -> Printf.sprintf "%s %s" (helper_display hd) (helper tl)
+        | _ -> ""
+      in
+      Printf.sprintf "(%s)" @@ helper v
+    | VVar v -> "#<procedure >" ^ v
+    | VLambda _ -> "#<procedure>"
+    | VVoid -> "#<void>"
+    | _ -> ""
+  ;;
+
   let interpr_display x =
-    let rec helper_display = function
-      | VString v -> v
-      | VInt v -> Base.string_of_int v
-      | VBool true -> "#t"
-      | VBool false -> "#f"
-      | VSymbol v -> v
-      | VAbreviation (c, v) -> Printf.sprintf "%c%s" c (helper_display v)
-      | VList v ->
-        let rec helper = function
-          | [ y ] -> helper_display y
-          | hd :: tl -> Printf.sprintf "%s %s" (helper_display hd) (helper tl)
-          | _ -> ""
-        in
-        Printf.sprintf "(%s)" @@ helper v
-      | VVar v -> "#<procedure >" ^ v
-      | VLambda _ -> "#<procedure>"
-      | VVoid -> "#<void>"
-      | _ -> ""
-    in
     let _ = Printf.printf "%s" (helper_display x) in
     return VVoid
 
@@ -346,6 +380,22 @@ module Interpret = struct
     | PEscaper x -> return (VEscaper x)
     | PCallCCLam (n, expr) -> return (VCallCCLam (n, expr))
     | PCallCC x -> return (find_call_cc_var ctx x)
+    | PQuasiquote x -> interpr_qquote ctx x
+
+  and interpr_qquote ctx = function
+    | PQConst x -> return (interpr_dconst x)
+    | PQList (PQLList x) ->
+      let* vlist = mapm (interpr_qquote ctx) x in
+      return (VList vlist)
+    | PQList (PQLQuote x) ->
+      let* vquote = interpr_qquote ctx x in
+      return (VAbreviation ('\'', vquote))
+    | PQList (PQLQuasiquote x) ->
+      let* vquote = interpr_qquote ctx x in
+      return (VAbreviation ('`', vquote))
+    | PQUnquote x ->
+      let* unquotation = interpr_expr ctx x in
+      return (VString (helper_display unquotation))
 
   and interpr_proc_call ctx op_expr objs =
     let* op = interpr_expr ctx op_expr in
