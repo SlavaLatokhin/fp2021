@@ -1,27 +1,30 @@
 open Ast
 open Parser
 
-type pqlist =
+type pqlist = (** Аналогично ast-шной версии *)
   | PQLList of prep_quasiquote list
   | PQLQuote of prep_quasiquote
   | PQLQuasiquote of prep_quasiquote
 
-and prep_quasiquote =
+and prep_quasiquote = (** Аналогично ast-шной версии *)
   | PQConst of dconst
   | PQList of pqlist
   | PQUnquote of prep_expr
 
-and prep_expr =
+and prep_expr = 
+(** Аналогично ast-шной версии, но с дополнительными типами для call/cc *)
   | PVar of variable
   | PQuote of datum
   | PQuasiquote of prep_quasiquote
   | PConst of const
   | PProcCall of prep_expr * prep_expr list
-  | PLam of formals * (variable * prep_expr) list * prep_expr * prep_expr list
+  | PLam of formals * (variable * prep_expr) list * prep_expr * prep_expr list 
+(** (lambda <formals> <definition> list <expr> <expr> list ) *)
   | PCond of prep_expr * prep_expr * prep_expr option
-  | PEscaper of prep_expr
-  | PCallCCLam of int * prep_expr
-  | PCallCC of int
+  | PEscaper of prep_expr 
+(** Функция выхода. Бросает исключение, и позволяет вернуться в функцию - обертку *)
+  | PCallCCLam of int * prep_expr (** Контекст выражения *)
+  | PCallCC of int (** Переменная для вызова call/cc *)
 [@@deriving show { with_path = false }]
 
 type value =

@@ -1,18 +1,7 @@
 open Interpreter
 
 (* let () =
-  let input_str =
-    {|  (display `(list  ,(+ 1 2) 4) )  |}
-    (* {|  (define list-product
-  (lambda (s)
-    (call/cc
-      (lambda (exit)
-        (let recur ((s s))
-          (if (null? s) 1
-              (if (= (car s) 0) (exit 0)
-                  (* (car s) (recur (cdr s))))))))))
-      (display (list-product '(1 2 3 4 5)))  |} *)
-  in
+  let input_str = {|  (display '(^-^) )  |} in
   match parse_and_run_prog input_str with
   | Ok (_, _) ->
     ()
@@ -33,19 +22,7 @@ open Ast
 
 let () =
   let input =
-    LazyStream.of_string {|  (display `(list  ,(+ 1 2) 4) )  |}
-    (* {| (let loop ((numbers '(3 -2 1 6 -5))
-           (nonneg '())
-           (neg '()))
-  (cond ((null? numbers) (list nonneg neg))
-        ((>= (car numbers) 0)
-         (loop (cdr numbers)
-               (cons (car numbers) nonneg)
-               neg))
-        ((< (car numbers) 0)
-         (loop (cdr numbers)
-               nonneg
-               (cons (car numbers) neg))))) |} *)
+    LazyStream.of_string {|  (display "(^-^)" )  |}
   in
   match parse prog input with
   | Some ans -> Format.printf "Actual: %a\n" pp_program ans
