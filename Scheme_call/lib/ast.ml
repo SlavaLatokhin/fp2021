@@ -1,15 +1,8 @@
 (** Переменная, лист переменных или вложенный quote/quasiquote/unquote *)
-type abbrev_prefix =
-  | AQuote (** ' *)
-  | AQuasiquote (** ` *)
-  | AUnquote (** , *)
-[@@deriving show { with_path = false }]
-
 type datum =
   | DConst of dconst
   | DList of datum list
-  | DAbbreviation of abbrev_prefix * datum
-[@@deriving show { with_path = false }]
+  | DAbbreviation of char * datum (** '<datum>; `<datum>; ,<datum> *)
 
 and id = string
 
