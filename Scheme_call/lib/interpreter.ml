@@ -12,8 +12,8 @@ and prep_quasiquote =
   | PQConst of dconst
   | PQList of pqlist
   | PQUnquote of prep_expr
-      (** Аналогично ast-шной версии, но с дополнительными типами для call/cc *)
 
+(** Аналогично ast-шной версии, но с дополнительными типами для call/cc *)
 and prep_expr =
   | PVar of variable
   | PQuote of datum
@@ -29,6 +29,7 @@ and prep_expr =
   | PCallCC of int (** Переменная для вызова call/cc *)
 [@@deriving show { with_path = false }]
 
+(** Тип возвращаемого значения *)
 type value =
   | VString of string
   | VInt of int
@@ -45,8 +46,13 @@ type value =
   | VCallCCLam of int * prep_expr
   | VEscaper of prep_expr
   | VPreprocValue of value
+      (** Переменная-обертка, необходимая для вычисления контекста. 
+      При встрече call/cc происходит возврат частично посчитанного выражения, 
+      при возврате на каждом шаге выражение оборачивается в данную переменную. *)
   | VPreprocExpr of prep_expr
+      (** Переменная-обертка. При встрече VPreprocValue недосчитанная часть выражения оборачивается в данную переменную *)
   | VProcCall of value * value list
+      (** Переменная-обертка для недосчитанного процедурного вызова *)
 [@@deriving show { with_path = false }]
 
 type err_interpr =
