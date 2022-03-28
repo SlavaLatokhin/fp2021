@@ -1,5 +1,5 @@
-type datum = 
-      (** Переменная, лист переменных или вложенный quote/quasiquote/unquote *)
+(** Переменная, лист переменных или вложенный quote/quasiquote/unquote *)
+type datum =
   | DConst of dconst
   | DList of datum list
   | DAbreviation of char * datum (** '<datum>; `<datum>; ,<datum> *)
@@ -33,7 +33,7 @@ and operator = Op of expr
 
 and formals =
   | FVarList of variable list (** Сопоставляет n переменным n выражений *)
-  | FVar of variable 
+  | FVar of variable
       (** Сопоставляет одной переменной n выражений, создает из них лист, и записывает этот лист в переменную *)
 
 and expr =
@@ -41,9 +41,9 @@ and expr =
   | Var of variable (** Переменная *)
   | Quote of datum (** '<datum> или (quote <datum>)*)
   | Const of const (** 1; "word"; #t *)
-  | ProcCall of operator * expr list 
+  | ProcCall of operator * expr list
       (** Вызов любой функции, созданной пользователем или уже имеющейся. Например: (+ 1 1), ((lambda (n) (* n n)) 5) *)) *)
-  | Lam of formals * definition list * expr * expr list 
+  | Lam of formals * definition list * expr * expr list
       (**   (lambda <formals> <definition> list <expr> <expr> list )  *)
   | Cond of expr * expr * expr option (** (if <test> <consequent> <alternate> option) *)
 
